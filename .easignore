@@ -1,0 +1,35 @@
+# Same exclusions as .gitignore
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+android/
+ios/
+.env
+.env.local
+.env.*.local
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+Thumbs.db
+*.pem
+
+# Exclude Bun 1.4 lockfileVersion 2 so EAS Build installs cleanly via npm (.npmrc legacy-peer-deps=true)
+bun.lock
+bun.lockb
+
+# Non-mobile files not needed in EAS Android build archive
+index.html
+prd.md
+plan.md
+designsystem.md
+supabase/
