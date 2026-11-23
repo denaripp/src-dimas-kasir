@@ -54,6 +54,9 @@ function RootNavigator() {
       <Stack.Screen name="barang/[id]" />
       <Stack.Screen name="barang/csv" />
       <Stack.Screen name="stok/[productId]" />
+      <Stack.Screen name="riwayat/[id]" />
+      <Stack.Screen name="keuangan/index" />
+      <Stack.Screen name="profil/index" />
     </Stack>
   );
 }
