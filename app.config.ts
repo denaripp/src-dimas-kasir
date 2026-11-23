@@ -4,6 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'src dimas kasir',
   slug: 'src-dimas-kasir',
+  owner: 'denaripp',
   version: '0.1.0',
   orientation: 'portrait',
   scheme: 'srcdimaskasir',
@@ -47,6 +48,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-font',
     'expo-web-browser',
+    './plugins/withThermalPrinterFix',
   ],
   experiments: {
     typedRoutes: true,
@@ -54,6 +56,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     router: {
       origin: false,
+    },
+    eas: {
+      projectId: 'c8aae741-7265-4790-bfb7-ab0f341c5bef',
     },
   },
 });
