@@ -51,6 +51,9 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="barang/[id]" />
+      <Stack.Screen name="barang/csv" />
+      <Stack.Screen name="stok/[productId]" />
     </Stack>
   );
 }
