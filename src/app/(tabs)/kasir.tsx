@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PrintFailureModal } from '@/components/printer/PrintFailureModal';
+import { PrinterPickerModal } from '@/components/printer/PrinterPickerModal';
 import { CameraBarcodeModal } from '@/components/scanner/CameraBarcodeModal';
 import { HidScannerInput } from '@/components/scanner/HidScannerInput';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,7 +29,10 @@ import {
   validateCartStock,
 } from '@/lib/cartCalc';
 import { formatDateTime, formatRupiah } from '@/lib/format';
+import { printReceiptBluetooth } from '@/lib/printer';
+import { shareReceiptPdf } from '@/lib/receiptPdf';
 import { useCartStore } from '@/store/useCartStore';
+import { usePrinterStore } from '@/store/usePrinterStore';
 import type { CreateSaleAtomicResult, ProductRow } from '@/types/database';
 
 export default function KasirScreen() {
@@ -45,6 +50,9 @@ export default function KasirScreen() {
   const syncProductStocks = useCartStore((s) => s.syncProductStocks);
   const clearCart = useCartStore((s) => s.clearCart);
 
+  const selectedPrinter = usePrinterStore((s) => s.selectedPrinter);
+  const hydratePrinter = usePrinterStore((s) => s.hydrate);
+
   const [search, setSearch] = useState('');
   const [cashText, setCashText] = useState('');
   const [isTypingInput, setIsTypingInput] = useState(false);
@@ -52,6 +60,13 @@ export default function KasirScreen() {
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<CreateSaleAtomicResult | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [printerPickerOpen, setPrinterPickerOpen] = useState(false);
+
+  useEffect(() => {
+    void hydratePrinter();
+  }, [hydratePrinter]);
 
   useEffect(() => {
     if (products.length > 0) {
@@ -163,8 +178,75 @@ export default function KasirScreen() {
     }
   };
 
+  const buildFallbackStore = useCallback(
+    () => ({
+      name: store?.name ?? 'Toko Saya',
+      address: store?.address ?? '',
+      phone: store?.phone ?? '',
+      logo_url: store?.logo_url ?? null,
+      receipt_footer: store?.receipt_footer ?? 'Terima kasih telah berbelanja!',
+      paper_size: store?.paper_size ?? (58 as const),
+    }),
+    [store],
+  );
+
+  const handlePrintBluetooth = useCallback(
+    async (saleData: CreateSaleAtomicResult, macOverride?: string) => {
+      const mac = macOverride ?? selectedPrinter?.macAddress;
+      if (!mac) {
+        setPrintError('Printer Bluetooth belum dipilih atau belum terhubung.');
+        return;
+      }
+
+      setIsPrinting(true);
+      setPrintError(null);
+      try {
+        await printReceiptBluetooth(
+          saleData.sale,
+          saleData.items,
+          buildFallbackStore(),
+          mac,
+        );
+        Alert.alert('Struk Dicetak', `Struk ${saleData.sale.receipt_number} dikirim ke printer.`);
+      } catch (err) {
+        setPrintError(
+          err instanceof Error
+            ? err.message
+            : 'Printer Bluetooth tidak merespons atau terputus.',
+        );
+      } finally {
+        setIsPrinting(false);
+      }
+    },
+    [selectedPrinter, buildFallbackStore],
+  );
+
+  const handleSharePdf = useCallback(
+    async (saleData: CreateSaleAtomicResult) => {
+      setIsPrinting(true);
+      try {
+        await shareReceiptPdf(saleData.sale, saleData.items, buildFallbackStore());
+        setPrintError(null);
+      } catch (err) {
+        Alert.alert(
+          'Gagal Bagikan PDF',
+          err instanceof Error ? err.message : 'Tidak dapat membuat file PDF struk.',
+        );
+      } finally {
+        setIsPrinting(false);
+      }
+    },
+    [buildFallbackStore],
+  );
+
   const hidEnabled =
-    isFocused && !isTypingInput && !cameraOpen && !notFoundBarcode && !lastSale;
+    isFocused &&
+    !isTypingInput &&
+    !cameraOpen &&
+    !notFoundBarcode &&
+    !lastSale &&
+    !printerPickerOpen &&
+    !printError;
 
   const canPay =
     isOnline &&
@@ -594,23 +676,45 @@ export default function KasirScreen() {
 
             <View className="gap-2.5">
               <Pressable
-                onPress={() =>
-                  Alert.alert(
-                    'Modul Cetak',
-                    'Cetak Bluetooth ESC/POS & Bagikan PDF akan disambungkan pada Phase 6.',
-                  )
-                }
+                onPress={() => {
+                  if (lastSale) {
+                    void handlePrintBluetooth(lastSale);
+                  }
+                }}
+                disabled={isPrinting}
                 className="flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
               >
-                <FontAwesome6 name="print" size={14} color="#FFFFFF" solid />
+                {isPrinting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <FontAwesome6 name="print" size={14} color="#FFFFFF" solid />
+                )}
                 <Text className="font-extrabold text-[13.5px] text-white">
-                  Cetak / Bagikan Struk
+                  {isPrinting ? 'Mencetak...' : 'Cetak Struk Bluetooth'}
                 </Text>
               </Pressable>
 
               <Pressable
-                onPress={() => setLastSale(null)}
-                className="items-center rounded-control border-[1.5px] border-black bg-white py-3"
+                onPress={() => {
+                  if (lastSale) {
+                    void handleSharePdf(lastSale);
+                  }
+                }}
+                disabled={isPrinting}
+                className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3"
+              >
+                <FontAwesome6 name="file-pdf" size={14} color="#D91E2A" solid />
+                <Text className="font-extrabold text-[13px] text-black">
+                  Bagikan PDF (WhatsApp)
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setPrintError(null);
+                  setLastSale(null);
+                }}
+                className="items-center py-2"
               >
                 <Text className="font-extrabold text-[13px] text-black">
                   Transaksi Baru
@@ -620,6 +724,39 @@ export default function KasirScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Dialog Gagal Cetak 3 Tombol (PRD 3.7) */}
+      <PrintFailureModal
+        visible={Boolean(printError && lastSale)}
+        errorMessage={printError}
+        isBusy={isPrinting}
+        onRetry={() => {
+          if (lastSale) {
+            void handlePrintBluetooth(lastSale);
+          }
+        }}
+        onChoosePrinter={() => {
+          setPrintError(null);
+          setPrinterPickerOpen(true);
+        }}
+        onSharePdf={() => {
+          if (lastSale) {
+            void handleSharePdf(lastSale);
+          }
+        }}
+        onClose={() => setPrintError(null)}
+      />
+
+      {/* Picker Printer Bluetooth */}
+      <PrinterPickerModal
+        visible={printerPickerOpen}
+        onClose={() => setPrinterPickerOpen(false)}
+        onSelected={(printer) => {
+          if (lastSale) {
+            void handlePrintBluetooth(lastSale, printer.macAddress);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
