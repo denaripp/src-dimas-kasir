@@ -21,7 +21,8 @@ export async function shareCsvFile({
     throw new Error('Direktori penyimpanan sementara tidak tersedia.');
   }
 
-  const fileUri = `${dir}${filename}`;
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const fileUri = `${dir}${safeFilename}`;
   await FileSystem.writeAsStringAsync(fileUri, content, {
     encoding: FileSystem.EncodingType.UTF8,
   });
