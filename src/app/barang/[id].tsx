@@ -1,26 +1,29 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { zodResolver } from '@hookform/resolvers/zod';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
 import { CameraBarcodeModal } from '@/components/scanner/CameraBarcodeModal';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useDeleteProductMutation,
   useProductByIdQuery,
   useSaveProductMutation,
+  useUploadProductImageMutation,
 } from '@/hooks/useProducts';
 import {
   parseIntOrZero,
@@ -34,13 +37,15 @@ export default function ProductFormScreen() {
   const productId = params.id;
   const isNew = !productId || productId === 'new';
 
-  const { store } = useAuth();
+  const { user, store } = useAuth();
   const { data: existingProduct, isLoading } = useProductByIdQuery(
     isNew ? undefined : productId,
   );
   const saveMutation = useSaveProductMutation();
   const deleteMutation = useDeleteProductMutation();
+  const uploadImageMutation = useUploadProductImageMutation();
 
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -74,8 +79,65 @@ export default function ProductFormScreen() {
         stock: String(existingProduct.stock),
         min_stock: String(existingProduct.min_stock),
       });
+      setImageUrl(existingProduct.image_url ?? null);
     }
   }, [existingProduct, reset]);
+
+  const handlePickImage = async (source: 'gallery' | 'camera') => {
+    if (!user?.id) {
+      setSubmitError('Sesi pengguna tidak ditemukan.');
+      return;
+    }
+
+    setSubmitError(null);
+    if (source === 'gallery') {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Izin Galeri', 'Izinkan akses galeri untuk memilih foto produk.');
+        return;
+      }
+    } else {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Izin Kamera', 'Izinkan akses kamera untuk memotret foto produk.');
+        return;
+      }
+    }
+
+    const result =
+      source === 'gallery'
+        ? await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          })
+        : await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
+
+    try {
+      const asset = result.assets[0];
+      const publicUrl = await uploadImageMutation.mutateAsync({
+        userId: user.id,
+        localUri: asset.uri,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+      });
+      setImageUrl(publicUrl);
+    } catch (err) {
+      Alert.alert(
+        'Gagal Unggah Foto',
+        err instanceof Error ? err.message : 'Tidak dapat mengunggah foto produk.',
+      );
+    }
+  };
 
   const onSubmit = async (values: ProductFormValues) => {
     if (!store?.id) {
@@ -91,6 +153,7 @@ export default function ProductFormScreen() {
         name: values.name,
         barcode: values.barcode ? values.barcode : null,
         category: values.category,
+        image_url: imageUrl,
         sell_price: parseIntOrZero(values.sell_price),
         cost_price: parseIntOrZero(values.cost_price),
         stock: parseIntOrZero(values.stock),
@@ -152,24 +215,24 @@ export default function ProductFormScreen() {
       >
         {/* Header */}
         <View className="flex-row items-center justify-between px-[18px] py-3">
-          <Pressable
+          <MotionPressable
             onPress={() => router.back()}
             accessibilityLabel="Kembali"
-            className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface"
           >
-            <FontAwesome6 name="chevron-left" size={15} color="#09090B" solid />
-          </Pressable>
-          <Text className="font-extrabold text-[16px] text-black">
+            <FontAwesome6 name="chevron-left" size={14} color="#09090B" solid />
+          </MotionPressable>
+          <Text className="font-extrabold text-[16px] tracking-[-0.02em] text-black">
             {isNew ? 'Tambah Barang' : 'Edit Barang'}
           </Text>
           {!isNew && productId ? (
-            <Pressable
+            <MotionPressable
               onPress={() => router.push(`/stok/${productId}`)}
               accessibilityLabel="Kelola stok barang"
-              className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+              className="h-10 w-10 items-center justify-center rounded-full bg-surface"
             >
               <FontAwesome6 name="boxes-stacked" size={14} color="#09090B" solid />
-            </Pressable>
+            </MotionPressable>
           ) : (
             <View className="h-10 w-10" />
           )}
@@ -182,15 +245,78 @@ export default function ProductFormScreen() {
           showsVerticalScrollIndicator={false}
         >
           {submitError ? (
-            <View className="mb-3.5 flex-row items-center gap-2 rounded-control bg-red px-4 py-3">
-              <FontAwesome6 name="triangle-exclamation" size={14} color="#FFFFFF" solid />
-              <Text className="flex-1 font-semibold text-[12px] text-white">{submitError}</Text>
+            <View className="mb-3.5 flex-row items-center gap-2 rounded-control bg-red-soft px-4 py-3">
+              <FontAwesome6 name="triangle-exclamation" size={14} color="#D91E2A" solid />
+              <Text className="flex-1 font-semibold text-[12px] text-red">{submitError}</Text>
             </View>
           ) : null}
 
+          {/* Foto Produk (Opsional — Galeri & Kamera) */}
+          <View className="mb-4 flex-row items-center gap-3.5 rounded-card border border-border bg-white p-3.5">
+            <View
+              className={`h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-[14px] bg-surface ${
+                imageUrl ? 'border border-border' : 'border border-dashed border-border'
+              }`}
+            >
+              {uploadImageMutation.isPending ? (
+                <ActivityIndicator size="small" color="#D91E2A" />
+              ) : imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="items-center gap-1">
+                  <FontAwesome6 name="image" size={18} color="#71717A" solid />
+                  <Text className="font-bold text-[10px] text-muted">Tanpa Foto</Text>
+                </View>
+              )}
+            </View>
+
+            <View className="flex-1">
+              <Text className="font-extrabold text-[13.5px] text-black">
+                Foto Produk (Opsional)
+              </Text>
+              <Text className="mt-0.5 font-medium text-[11.5px] leading-4 text-muted">
+                Tampil di Daftar Barang &amp; Katalog Kasir. Maks 2 MB.
+              </Text>
+
+              <View className="mt-2.5 flex-row flex-wrap items-center gap-1.5">
+                <MotionPressable
+                  onPress={() => void handlePickImage('gallery')}
+                  disabled={uploadImageMutation.isPending}
+                  className="flex-row items-center gap-1.5 rounded-[9px] bg-red px-2.5 py-1.5"
+                >
+                  <FontAwesome6 name="image" size={11} color="#FFFFFF" solid />
+                  <Text className="font-bold text-[11.5px] text-white">Galeri</Text>
+                </MotionPressable>
+
+                <MotionPressable
+                  onPress={() => void handlePickImage('camera')}
+                  disabled={uploadImageMutation.isPending}
+                  className="flex-row items-center gap-1.5 rounded-[9px] border border-border bg-white px-2.5 py-1.5"
+                >
+                  <FontAwesome6 name="camera" size={11} color="#09090B" solid />
+                  <Text className="font-bold text-[11.5px] text-black">Kamera</Text>
+                </MotionPressable>
+
+                {imageUrl ? (
+                  <MotionPressable
+                    onPress={() => setImageUrl(null)}
+                    disabled={uploadImageMutation.isPending}
+                    className="rounded-[9px] bg-red-soft px-2.5 py-1.5"
+                  >
+                    <Text className="font-bold text-[11.5px] text-red">Hapus</Text>
+                  </MotionPressable>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
           {/* Nama Barang */}
           <View className="mb-3.5">
-            <Text className="mb-1.5 font-bold text-[12.5px] text-black">Nama Barang *</Text>
+            <Text className="mb-1.5 font-bold text-[12px] text-black">Nama Barang *</Text>
             <Controller
               control={control}
               name="name"
@@ -200,8 +326,8 @@ export default function ProductFormScreen() {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="Contoh: Indomie Goreng Original"
-                  placeholderTextColor="#09090B"
-                  className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-semibold text-[13.5px] text-black"
+                  placeholderTextColor="#71717A"
+                  className="rounded-control bg-surface px-3.5 py-3 font-semibold text-[13.5px] text-black"
                 />
               )}
             />
@@ -214,8 +340,8 @@ export default function ProductFormScreen() {
 
           {/* Barcode (Kamera / HID / Manual) */}
           <View className="mb-3.5">
-            <Text className="mb-1.5 font-bold text-[12.5px] text-black">
-              Barcode (Opsional — Scan Kamera, HID, atau Ketik)
+            <Text className="mb-1.5 font-bold text-[12px] text-black">
+              Barcode (Opsional — Kamera, HID, atau Ketik)
             </Text>
             <View className="flex-row items-center gap-2">
               <Controller
@@ -227,26 +353,24 @@ export default function ProductFormScreen() {
                     onChangeText={onChange}
                     onBlur={onBlur}
                     placeholder="Kosongkan jika tanpa barcode"
-                    placeholderTextColor="#09090B"
-                    className="flex-1 rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-semibold text-[13.5px] text-black"
+                    placeholderTextColor="#71717A"
+                    className="flex-1 rounded-control bg-surface px-3.5 py-3 font-semibold text-[13.5px] text-black"
                   />
                 )}
               />
-              <Pressable
+              <MotionPressable
                 onPress={() => setScannerOpen(true)}
                 accessibilityLabel="Pindai barcode dengan kamera"
-                className="h-[48px] w-[48px] items-center justify-center rounded-control border-[1.5px] border-red bg-red"
+                className="h-[46px] w-[46px] items-center justify-center rounded-control bg-red"
               >
-                <FontAwesome6 name="camera" size={17} color="#FFFFFF" solid />
-              </Pressable>
+                <FontAwesome6 name="camera" size={16} color="#FFFFFF" solid />
+              </MotionPressable>
             </View>
           </View>
 
           {/* Kategori */}
           <View className="mb-3.5">
-            <Text className="mb-1.5 font-bold text-[12.5px] text-black">
-              Kategori (Opsional)
-            </Text>
+            <Text className="mb-1.5 font-bold text-[12px] text-black">Kategori (Opsional)</Text>
             <Controller
               control={control}
               name="category"
@@ -256,19 +380,17 @@ export default function ProductFormScreen() {
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="Contoh: Makanan, Minuman, Sembako"
-                  placeholderTextColor="#09090B"
-                  className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-semibold text-[13.5px] text-black"
+                  placeholderTextColor="#71717A"
+                  className="rounded-control bg-surface px-3.5 py-3 font-semibold text-[13.5px] text-black"
                 />
               )}
             />
           </View>
 
           {/* Harga Jual & Harga Modal */}
-          <View className="mb-3.5 flex-row gap-3">
+          <View className="mb-3.5 flex-row gap-2.5">
             <View className="flex-1">
-              <Text className="mb-1.5 font-bold text-[12.5px] text-black">
-                Harga Jual (Rp) *
-              </Text>
+              <Text className="mb-1.5 font-bold text-[12px] text-black">Harga Jual (Rp) *</Text>
               <Controller
                 control={control}
                 name="sell_price"
@@ -279,8 +401,8 @@ export default function ProductFormScreen() {
                     onBlur={onBlur}
                     keyboardType="number-pad"
                     placeholder="3500"
-                    placeholderTextColor="#09090B"
-                    className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-extrabold text-[14px] text-black"
+                    placeholderTextColor="#71717A"
+                    className="rounded-control bg-surface px-3.5 py-3 font-extrabold text-[14px] text-black"
                   />
                 )}
               />
@@ -292,9 +414,7 @@ export default function ProductFormScreen() {
             </View>
 
             <View className="flex-1">
-              <Text className="mb-1.5 font-bold text-[12.5px] text-black">
-                Harga Modal (Rp)
-              </Text>
+              <Text className="mb-1.5 font-bold text-[12px] text-black">Harga Modal (Rp)</Text>
               <Controller
                 control={control}
                 name="cost_price"
@@ -305,8 +425,8 @@ export default function ProductFormScreen() {
                     onBlur={onBlur}
                     keyboardType="number-pad"
                     placeholder="0"
-                    placeholderTextColor="#09090B"
-                    className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-extrabold text-[14px] text-black"
+                    placeholderTextColor="#71717A"
+                    className="rounded-control bg-surface px-3.5 py-3 font-extrabold text-[14px] text-black"
                   />
                 )}
               />
@@ -314,9 +434,9 @@ export default function ProductFormScreen() {
           </View>
 
           {/* Stok & Stok Minimum */}
-          <View className="mb-5 flex-row gap-3">
+          <View className="mb-5 flex-row gap-2.5">
             <View className="flex-1">
-              <Text className="mb-1.5 font-bold text-[12.5px] text-black">
+              <Text className="mb-1.5 font-bold text-[12px] text-black">
                 {isNew ? 'Stok Awal' : 'Stok Saat Ini'}
               </Text>
               {isNew ? (
@@ -330,28 +450,29 @@ export default function ProductFormScreen() {
                       onBlur={onBlur}
                       keyboardType="number-pad"
                       placeholder="0"
-                      placeholderTextColor="#09090B"
-                      className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-extrabold text-[14px] text-black"
+                      placeholderTextColor="#71717A"
+                      className="rounded-control bg-surface px-3.5 py-3 font-extrabold text-[14px] text-black"
                     />
                   )}
                 />
               ) : (
-                <Pressable
+                <MotionPressable
                   onPress={() => productId && router.push(`/stok/${productId}`)}
-                  className="flex-row items-center justify-between rounded-control border-[1.5px] border-dashed border-black bg-white px-3.5 py-3"
+                  className="flex-row items-center justify-between rounded-control border border-border bg-white px-3.5 py-3"
                 >
-                  <Text className="font-extrabold text-[14px] text-black">
+                  <Text
+                    className="font-extrabold text-[14px] text-black"
+                    style={{ fontVariant: ['tabular-nums'] }}
+                  >
                     {existingProduct?.stock ?? 0}
                   </Text>
-                  <Text className="font-bold text-[11px] text-red">Ubah Stok</Text>
-                </Pressable>
+                  <Text className="font-bold text-[11.5px] text-red">Ubah Stok</Text>
+                </MotionPressable>
               )}
             </View>
 
             <View className="flex-1">
-              <Text className="mb-1.5 font-bold text-[12.5px] text-black">
-                Stok Minimum
-              </Text>
+              <Text className="mb-1.5 font-bold text-[12px] text-black">Stok Minimum</Text>
               <Controller
                 control={control}
                 name="min_stock"
@@ -362,8 +483,8 @@ export default function ProductFormScreen() {
                     onBlur={onBlur}
                     keyboardType="number-pad"
                     placeholder="0"
-                    placeholderTextColor="#09090B"
-                    className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-3 font-extrabold text-[14px] text-black"
+                    placeholderTextColor="#71717A"
+                    className="rounded-control bg-surface px-3.5 py-3 font-extrabold text-[14px] text-black"
                   />
                 )}
               />
@@ -371,10 +492,10 @@ export default function ProductFormScreen() {
           </View>
 
           {/* Submit CTA */}
-          <Pressable
+          <MotionPressable
             onPress={handleSubmit(onSubmit)}
-            disabled={saveMutation.isPending}
-            className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-red bg-red py-3.5"
+            disabled={saveMutation.isPending || uploadImageMutation.isPending}
+            className="min-h-[48px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
           >
             {saveMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -388,20 +509,20 @@ export default function ProductFormScreen() {
                   ? 'Simpan Barang'
                   : 'Simpan Perubahan'}
             </Text>
-          </Pressable>
+          </MotionPressable>
 
           {/* Delete Button on Edit Mode */}
           {!isNew ? (
-            <Pressable
+            <MotionPressable
               onPress={confirmDelete}
               disabled={deleteMutation.isPending}
-              className="mt-3 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3.5"
+              className="mt-3 min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red-soft py-3"
             >
-              <FontAwesome6 name="trash" size={14} color="#D91E2A" solid />
+              <FontAwesome6 name="trash" size={13} color="#D91E2A" solid />
               <Text className="font-extrabold text-[13.5px] text-red">
                 {deleteMutation.isPending ? 'Menghapus...' : 'Hapus Barang'}
               </Text>
-            </Pressable>
+            </MotionPressable>
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>

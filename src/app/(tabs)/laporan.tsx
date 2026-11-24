@@ -6,7 +6,6 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -15,6 +14,8 @@ import {
 } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
+import { ProductThumbnail } from '@/components/common/ProductThumbnail';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { usePeriodReportQuery } from '@/hooks/useReports';
@@ -95,6 +96,12 @@ export default function LaporanScreen() {
     [products],
   );
 
+  const productImageMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    products.forEach((p) => map.set(p.id, p.image_url));
+    return map;
+  }, [products]);
+
   const chartData = useMemo(() => {
     const series = report?.dailySeries ?? [];
     if (series.length === 0) return [];
@@ -105,21 +112,27 @@ export default function LaporanScreen() {
       return {
         value: point.totalSales,
         label: point.label.split(' ')[0],
-        frontColor: isPeak ? '#D91E2A' : '#09090B',
-        topLabelComponent: () => (
-          <Text
-            className={`mb-1 font-extrabold text-[9px] ${
-              isPeak ? 'text-red' : 'text-black'
-            }`}
-          >
-            {point.totalSales >= 1000
-              ? `${Math.round(point.totalSales / 1000)}rb`
-              : `${point.totalSales}`}
-          </Text>
-        ),
+        frontColor: isPeak ? '#D91E2A' : '#E4E4E7',
+        topLabelComponent: () =>
+          isPeak ? (
+            <Text
+              className="mb-1 font-extrabold text-[9.5px] text-red"
+              style={{ fontVariant: ['tabular-nums'] }}
+            >
+              {point.totalSales >= 1000
+                ? `${Math.round(point.totalSales / 1000)}rb`
+                : `${point.totalSales}`}
+            </Text>
+          ) : null,
       };
     });
   }, [report?.dailySeries]);
+
+  const maxTopQty = useMemo(() => {
+    const tops = report?.topProducts ?? [];
+    if (tops.length === 0) return 1;
+    return Math.max(...tops.map((t) => t.totalQty), 1);
+  }, [report?.topProducts]);
 
   const handleExportReportCsv = async () => {
     if (!report) return;
@@ -177,78 +190,89 @@ export default function LaporanScreen() {
       >
         {/* Header */}
         <View className="mb-3.5 flex-row items-center justify-between">
-          <Text className="font-extrabold text-[18px] text-black">Laporan Usaha</Text>
+          <Text className="font-extrabold text-[20px] tracking-[-0.03em] text-black">
+            Laporan
+          </Text>
           <View className="flex-row items-center gap-2">
-            <Pressable
+            <MotionPressable
               onPress={() => router.push('/keuangan')}
               accessibilityLabel="Buka Keuangan dan Pengeluaran"
-              className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+              className="h-10 w-10 items-center justify-center rounded-full bg-surface"
             >
               <FontAwesome6 name="wallet" size={14} color="#09090B" solid />
-            </Pressable>
-            <Pressable
+            </MotionPressable>
+            <MotionPressable
               onPress={() => router.push('/profil')}
               accessibilityLabel="Buka Profil Toko"
-              className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+              className="h-10 w-10 items-center justify-center rounded-full bg-surface"
             >
               <FontAwesome6 name="store" size={14} color="#09090B" solid />
-            </Pressable>
-            <Pressable
+            </MotionPressable>
+            <MotionPressable
               onPress={() => void handleExportReportCsv()}
               disabled={isExporting || !report}
               accessibilityLabel="Ekspor Laporan CSV"
-              className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-red bg-red"
+              className="h-10 w-10 items-center justify-center rounded-full bg-red"
             >
               <FontAwesome6 name="download" size={14} color="#FFFFFF" solid />
-            </Pressable>
+            </MotionPressable>
           </View>
         </View>
 
-        {/* Period Filter Strip */}
-        <View className="mb-3 flex-row gap-1.5">
+        {/* Segmented Period Filter Strip */}
+        <View className="mb-3.5 flex-row gap-1 rounded-[13px] bg-surface p-1">
           {PERIOD_OPTIONS.map((opt) => {
             const active = period === opt.key;
             return (
-              <Pressable
+              <MotionPressable
                 key={opt.key}
+                wrapperClassName="flex-1"
                 onPress={() => setPeriod(opt.key)}
-                className={`flex-1 items-center rounded-chip border-[1.5px] py-2 ${
-                  active ? 'border-red bg-red' : 'border-black bg-white'
-                }`}
+                scaleTo={0.97}
+                className={`items-center rounded-[9px] py-2 ${active ? 'bg-white' : ''}`}
+                style={
+                  active
+                    ? {
+                        shadowColor: '#09090B',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 3,
+                        elevation: 1,
+                      }
+                    : undefined
+                }
               >
                 <Text
-                  className={`font-extrabold text-[11px] ${
-                    active ? 'text-white' : 'text-black'
-                  }`}
+                  className={`font-bold text-[11px] ${active ? 'text-black' : 'text-muted'}`}
                 >
                   {opt.label}
                 </Text>
-              </Pressable>
+              </MotionPressable>
             );
           })}
         </View>
 
         {/* Custom Date Range Inputs */}
         {period === 'custom' ? (
-          <View className="mb-3 flex-row gap-2">
+          <View className="mb-3.5 flex-row gap-2.5">
             <View className="flex-1">
-              <Text className="mb-1 font-bold text-[11px] text-black">Dari (YYYY-MM-DD)</Text>
+              <Text className="mb-1 font-bold text-[11px] text-muted">Dari (YYYY-MM-DD)</Text>
               <TextInput
                 value={customStartText}
                 onChangeText={setCustomStartText}
                 placeholder="2026-11-01"
-                placeholderTextColor="#09090B"
-                className="rounded-chip border-[1.5px] border-black bg-white px-3 py-2 font-semibold text-[12.5px] text-black"
+                placeholderTextColor="#71717A"
+                className="rounded-control bg-surface px-3 py-2.5 font-semibold text-[12.5px] text-black"
               />
             </View>
             <View className="flex-1">
-              <Text className="mb-1 font-bold text-[11px] text-black">Sampai (YYYY-MM-DD)</Text>
+              <Text className="mb-1 font-bold text-[11px] text-muted">Sampai (YYYY-MM-DD)</Text>
               <TextInput
                 value={customEndText}
                 onChangeText={setCustomEndText}
-                placeholder="2026-11-23"
-                placeholderTextColor="#09090B"
-                className="rounded-chip border-[1.5px] border-black bg-white px-3 py-2 font-semibold text-[12.5px] text-black"
+                placeholder="2026-11-24"
+                placeholderTextColor="#71717A"
+                className="rounded-control bg-surface px-3 py-2.5 font-semibold text-[12.5px] text-black"
               />
             </View>
           </View>
@@ -261,21 +285,28 @@ export default function LaporanScreen() {
         ) : (
           <>
             {/* Main Sales Chart Card */}
-            <View className="mb-3.5 rounded-hero border-[1.5px] border-black bg-white p-4">
-              <Text className="font-semibold text-[12px] text-black">
-                Total Penjualan ({dateWindow.label})
-              </Text>
-              <View className="mt-1 flex-row items-baseline justify-between gap-2">
-                <Text className="font-extrabold text-[23px] tracking-[-0.03em] text-black">
-                  {formatRupiah(report?.totalSales ?? 0)}
+            <View className="mb-3.5 rounded-card border border-border bg-white p-4">
+              <View className="flex-row items-baseline justify-between gap-2">
+                <Text className="font-semibold text-[12px] text-muted" numberOfLines={1}>
+                  Total Penjualan · {dateWindow.label}
                 </Text>
-                <Text className="font-semibold text-[11px] text-black">
-                  Biaya:{' '}
+                <Text
+                  className="font-semibold text-[11.5px] text-muted"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
+                  Biaya{' '}
                   <Text className="font-extrabold text-red">
                     {formatRupiah(report?.totalExpenses ?? 0)}
                   </Text>
                 </Text>
               </View>
+
+              <Text
+                className="mt-1 font-extrabold text-[25px] tracking-[-0.03em] text-black"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
+                {formatRupiah(report?.totalSales ?? 0)}
+              </Text>
 
               <View className="mt-4 items-center overflow-hidden">
                 {chartData.length > 0 ? (
@@ -285,23 +316,24 @@ export default function LaporanScreen() {
                     spacing={14}
                     roundedTop
                     showGradient={false}
-                    hideRules
+                    rulesColor="#E4E4E7"
+                    rulesType="solid"
                     yAxisThickness={0}
-                    xAxisThickness={1.5}
-                    xAxisColor="#09090B"
+                    xAxisThickness={1}
+                    xAxisColor="#E4E4E7"
                     hideYAxisText
-                    height={130}
+                    height={132}
                     noOfSections={3}
                     isAnimated={false}
                     xAxisLabelTextStyle={{
-                      color: '#09090B',
-                      fontSize: 10,
-                      fontWeight: '700',
+                      color: '#71717A',
+                      fontSize: 10.5,
+                      fontWeight: '600',
                     }}
                   />
                 ) : (
-                  <View className="w-full items-center rounded-control border-[1.5px] border-dashed border-black py-7">
-                    <Text className="font-semibold text-[12px] text-black">
+                  <View className="w-full items-center rounded-control bg-surface py-7">
+                    <Text className="font-medium text-[12px] text-muted">
                       Belum ada grafik penjualan pada periode ini.
                     </Text>
                   </View>
@@ -309,158 +341,192 @@ export default function LaporanScreen() {
               </View>
             </View>
 
-            {/* 2x2 KPI Grid */}
-            <View className="mb-3 flex-row gap-3">
-              <View className="flex-1 rounded-card border-[1.5px] border-black bg-white p-3.5">
-                <View className="mb-2.5 flex-row items-center gap-2">
-                  <View className="h-8 w-8 items-center justify-center rounded-full bg-red">
-                    <FontAwesome6 name="arrow-trend-up" size={13} color="#FFFFFF" solid />
-                  </View>
-                  <Text className="font-extrabold text-[12px] text-black">Laba Kotor</Text>
-                </View>
-                <Text className="font-extrabold text-[16.5px] text-black">
+            {/* 2x2 Soft KPI Grid */}
+            <View className="mb-2.5 flex-row gap-2.5">
+              <View className="flex-1 rounded-card bg-surface p-3.5">
+                <Text className="font-semibold text-[11.5px] text-muted">Laba Kotor</Text>
+                <Text
+                  className="mt-1.5 font-extrabold text-[17px] text-black"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
                   {formatRupiah(report?.grossProfit ?? 0)}
                 </Text>
               </View>
 
-              <View className="flex-1 rounded-card border-[1.5px] border-black bg-white p-3.5">
-                <View className="mb-2.5 flex-row items-center gap-2">
-                  <View className="h-8 w-8 items-center justify-center rounded-full bg-red">
-                    <FontAwesome6 name="wallet" size={13} color="#FFFFFF" solid />
-                  </View>
-                  <Text className="font-extrabold text-[12px] text-black">Laba Bersih</Text>
-                </View>
+              <MotionPressable
+                wrapperClassName="flex-1"
+                onPress={() => router.push('/keuangan')}
+                className="rounded-card bg-surface p-3.5"
+              >
+                <Text className="font-semibold text-[11.5px] text-muted">Laba Bersih</Text>
                 <Text
-                  className={`font-extrabold text-[16.5px] ${
+                  className={`mt-1.5 font-extrabold text-[17px] ${
                     (report?.netProfit ?? 0) < 0 ? 'text-red' : 'text-black'
                   }`}
+                  style={{ fontVariant: ['tabular-nums'] }}
                 >
                   {formatRupiah(report?.netProfit ?? 0)}
                 </Text>
-              </View>
+              </MotionPressable>
             </View>
 
-            <View className="mb-4 flex-row gap-3">
-              <View className="flex-1 rounded-card border-[1.5px] border-black bg-white p-3.5">
-                <View className="mb-2.5 flex-row items-center gap-2">
-                  <View className="h-8 w-8 items-center justify-center rounded-full bg-red">
-                    <FontAwesome6 name="receipt" size={13} color="#FFFFFF" solid />
-                  </View>
-                  <Text className="font-extrabold text-[12px] text-black">Transaksi</Text>
-                </View>
-                <Text className="font-extrabold text-[16.5px] text-black">
+            <View className="mb-4 flex-row gap-2.5">
+              <View className="flex-1 rounded-card bg-surface p-3.5">
+                <Text className="font-semibold text-[11.5px] text-muted">Transaksi Selesai</Text>
+                <Text
+                  className="mt-1.5 font-extrabold text-[17px] text-black"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
                   {report?.completedCount ?? 0}{' '}
-                  <Text className="font-medium text-[11px]">selesai</Text>
+                  <Text className="font-semibold text-[11.5px] text-muted">struk</Text>
                 </Text>
               </View>
 
-              <View className="flex-1 rounded-card border-[1.5px] border-black bg-white p-3.5">
-                <View className="mb-2.5 flex-row items-center gap-2">
-                  <View className="h-8 w-8 items-center justify-center rounded-full bg-red">
-                    <FontAwesome6 name="box-open" size={13} color="#FFFFFF" solid />
-                  </View>
-                  <Text className="font-extrabold text-[12px] text-black">Stok Menipis</Text>
-                </View>
-                <Text className="font-extrabold text-[16.5px] text-black">
+              <MotionPressable
+                wrapperClassName="flex-1"
+                onPress={() => router.push('/(tabs)/barang')}
+                className="rounded-card bg-surface p-3.5"
+              >
+                <Text className="font-semibold text-[11.5px] text-muted">Stok Menipis</Text>
+                <Text
+                  className={`mt-1.5 font-extrabold text-[17px] ${
+                    lowStockProducts.length > 0 ? 'text-red' : 'text-black'
+                  }`}
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
                   {lowStockProducts.length}{' '}
-                  <Text className="font-medium text-[11px]">barang</Text>
+                  <Text className="font-semibold text-[11.5px] text-muted">barang</Text>
                 </Text>
-              </View>
+              </MotionPressable>
             </View>
 
-            {/* Top 5 Barang Terlaris */}
-            <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
-              <View className="mb-2.5 flex-row items-center gap-2">
-                <FontAwesome6 name="trophy" size={14} color="#D91E2A" solid />
-                <Text className="font-extrabold text-[14px] text-black">
-                  Top 5 Barang Terlaris (Unit)
-                </Text>
-              </View>
+            {/* Top 5 Barang Terlaris (with Thumbnails + Proportional Bar) */}
+            <View className="mb-2.5 flex-row items-center justify-between">
+              <Text className="font-extrabold text-[14px] text-black">
+                Top 5 Barang Terlaris
+              </Text>
+              <Text className="font-semibold text-[11.5px] text-muted">Berdasarkan unit</Text>
+            </View>
 
+            <View className="mb-4 overflow-hidden rounded-card border border-border bg-white">
               {(report?.topProducts.length ?? 0) === 0 ? (
-                <Text className="font-medium text-[12px] text-black">
-                  Belum ada penjualan barang pada periode ini.
-                </Text>
+                <View className="p-4">
+                  <Text className="font-medium text-[12px] text-muted">
+                    Belum ada penjualan barang pada periode ini.
+                  </Text>
+                </View>
               ) : (
-                <View className="gap-2">
-                  {report!.topProducts.map((item, idx) => (
+                report!.topProducts.map((item, idx) => {
+                  const isLast = idx === report!.topProducts.length - 1;
+                  const pct = Math.max(8, Math.round((item.totalQty / maxTopQty) * 100));
+                  const thumbUrl = productImageMap.get(item.productId) ?? null;
+
+                  return (
                     <View
                       key={item.productId}
-                      className="flex-row items-center justify-between border-b border-dashed border-black pb-2 last:border-b-0 last:pb-0"
+                      className={`flex-row items-center gap-3 px-3.5 py-3 ${
+                        !isLast ? 'border-b border-border' : ''
+                      }`}
                     >
-                      <View className="flex-1 flex-row items-center gap-2.5 pr-2">
-                        <View
-                          className={`h-6 w-6 items-center justify-center rounded-full ${
-                            idx === 0 ? 'bg-red' : 'bg-black'
-                          }`}
-                        >
-                          <Text className="font-extrabold text-[11px] text-white">
-                            {idx + 1}
+                      <ProductThumbnail imageUrl={thumbUrl} size={38} iconSize={14} />
+
+                      <View className="flex-1">
+                        <View className="flex-row items-center justify-between gap-2">
+                          <Text
+                            className="flex-1 font-bold text-[13px] text-black"
+                            numberOfLines={1}
+                          >
+                            {idx + 1}. {item.name}
+                          </Text>
+                          <Text
+                            className="font-extrabold text-[12.5px] text-black"
+                            style={{ fontVariant: ['tabular-nums'] }}
+                          >
+                            {item.totalQty} unit
                           </Text>
                         </View>
+
+                        <View className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-surface">
+                          <View
+                            className="h-full rounded-full bg-red"
+                            style={{
+                              width: `${pct}%`,
+                              opacity: idx === 0 ? 1 : 0.45,
+                            }}
+                          />
+                        </View>
+
                         <Text
-                          className="flex-1 font-bold text-[13px] text-black"
-                          numberOfLines={1}
+                          className="mt-1 font-medium text-[11px] text-muted"
+                          style={{ fontVariant: ['tabular-nums'] }}
                         >
-                          {item.name}
-                        </Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="font-extrabold text-[13px] text-black">
-                          {item.totalQty} unit
-                        </Text>
-                        <Text className="font-medium text-[11px] text-black">
-                          {formatRupiah(item.totalRevenue)}
+                          Omzet {formatRupiah(item.totalRevenue)}
                         </Text>
                       </View>
                     </View>
-                  ))}
-                </View>
+                  );
+                })
               )}
             </View>
 
-            {/* Daftar Stok Menipis */}
+            {/* Peringatan Stok Menipis */}
             {lowStockProducts.length > 0 ? (
-              <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
+              <>
                 <Text className="mb-2.5 font-extrabold text-[14px] text-black">
                   Peringatan Stok Menipis ({lowStockProducts.length})
                 </Text>
-                <View className="gap-2">
-                  {lowStockProducts.slice(0, 6).map((prod) => (
-                    <Pressable
-                      key={prod.id}
-                      onPress={() => router.push(`/stok/${prod.id}`)}
-                      className="flex-row items-center justify-between border-b border-dashed border-black pb-2 last:border-b-0 last:pb-0"
-                    >
-                      <Text className="flex-1 font-bold text-[13px] text-black" numberOfLines={1}>
-                        {prod.name}
-                      </Text>
-                      <Text className="font-extrabold text-[12.5px] text-red">
-                        Sisa {prod.stock} / Min {prod.min_stock}
-                      </Text>
-                    </Pressable>
-                  ))}
+                <View className="mb-4 overflow-hidden rounded-card border border-border bg-white">
+                  {lowStockProducts.slice(0, 6).map((prod, idx) => {
+                    const isLast = idx === Math.min(lowStockProducts.length, 6) - 1;
+                    return (
+                      <MotionPressable
+                        key={prod.id}
+                        onPress={() => router.push(`/stok/${prod.id}`)}
+                        scaleTo={0.985}
+                        className={`flex-row items-center justify-between bg-white px-3.5 py-3 ${
+                          !isLast ? 'border-b border-border' : ''
+                        }`}
+                      >
+                        <Text
+                          className="flex-1 pr-2 font-bold text-[13px] text-black"
+                          numberOfLines={1}
+                        >
+                          {prod.name}
+                        </Text>
+                        <View className="rounded-[7px] bg-red-soft px-2 py-0.5">
+                          <Text
+                            className="font-bold text-[11px] text-red"
+                            style={{ fontVariant: ['tabular-nums'] }}
+                          >
+                            Sisa {prod.stock} / Min {prod.min_stock}
+                          </Text>
+                        </View>
+                      </MotionPressable>
+                    );
+                  })}
                 </View>
-              </View>
+              </>
             ) : null}
 
             {/* Shortcut Keuangan & Profil */}
             <View className="flex-row gap-2.5">
-              <Pressable
+              <MotionPressable
+                wrapperClassName="flex-1"
                 onPress={() => router.push('/keuangan')}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3"
+                className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
               >
                 <FontAwesome6 name="wallet" size={13} color="#09090B" solid />
-                <Text className="font-extrabold text-[12.5px] text-black">Pengeluaran</Text>
-              </Pressable>
+                <Text className="font-bold text-[13px] text-black">Pengeluaran</Text>
+              </MotionPressable>
 
-              <Pressable
+              <MotionPressable
+                wrapperClassName="flex-1"
                 onPress={() => router.push('/profil')}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3"
+                className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
               >
                 <FontAwesome6 name="store" size={13} color="#09090B" solid />
-                <Text className="font-extrabold text-[12.5px] text-black">Profil &amp; Printer</Text>
-              </Pressable>
+                <Text className="font-bold text-[13px] text-black">Profil Toko</Text>
+              </MotionPressable>
             </View>
           </>
         )}

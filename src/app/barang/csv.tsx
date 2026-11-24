@@ -7,12 +7,12 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useImportProductsCsvMutation,
@@ -110,7 +110,9 @@ export default function CsvProductsScreen() {
       const parsed = parseProductsCsv(text);
       setSelectedFileName(file.name);
       setPreview(parsed);
-      setPreviewTab(parsed.errorRows.length > 0 && parsed.validRows.length === 0 ? 'error' : 'valid');
+      setPreviewTab(
+        parsed.errorRows.length > 0 && parsed.validRows.length === 0 ? 'error' : 'valid',
+      );
     } catch (err) {
       Alert.alert(
         'Gagal Membaca CSV',
@@ -145,14 +147,16 @@ export default function CsvProductsScreen() {
     <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row items-center justify-between px-[18px] py-3">
-        <Pressable
+        <MotionPressable
           onPress={() => router.back()}
           accessibilityLabel="Kembali"
-          className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+          className="h-10 w-10 items-center justify-center rounded-full bg-surface"
         >
-          <FontAwesome6 name="chevron-left" size={15} color="#09090B" solid />
-        </Pressable>
-        <Text className="font-extrabold text-[16px] text-black">Import &amp; Export CSV</Text>
+          <FontAwesome6 name="chevron-left" size={14} color="#09090B" solid />
+        </MotionPressable>
+        <Text className="font-extrabold text-[16px] tracking-[-0.02em] text-black">
+          Import &amp; Export CSV
+        </Text>
         <View className="h-10 w-10" />
       </View>
 
@@ -162,55 +166,57 @@ export default function CsvProductsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Export & Template Card */}
-        <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
-          <Text className="font-extrabold text-[14.5px] text-black">
+        <View className="mb-3.5 rounded-card border border-border bg-white p-4">
+          <Text className="font-extrabold text-[14px] text-black">
             Export &amp; Template Standar
           </Text>
-          <Text className="mt-1 font-medium text-[12px] text-black">
+          <Text className="mt-1 font-medium text-[12px] leading-4 text-muted">
             Kolom wajib: nama, harga_jual. Kolom lengkap: nama, barcode, kategori, harga_jual, harga_modal, stok, stok_minimum (maks 1.000 baris).
           </Text>
 
           <View className="mt-3.5 flex-row gap-2.5">
-            <Pressable
+            <MotionPressable
+              wrapperClassName="flex-1"
               onPress={() => void handleExportProducts()}
               disabled={isExporting}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3"
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
             >
               <FontAwesome6 name="download" size={13} color="#09090B" solid />
-              <Text className="font-extrabold text-[12.5px] text-black">
+              <Text className="font-bold text-[12.5px] text-black">
                 {isExporting ? 'Mengekspor...' : `Export (${products.length})`}
               </Text>
-            </Pressable>
+            </MotionPressable>
 
-            <Pressable
+            <MotionPressable
+              wrapperClassName="flex-1"
               onPress={() => void handleDownloadTemplate()}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3"
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
             >
               <FontAwesome6 name="file-arrow-down" size={13} color="#09090B" solid />
-              <Text className="font-extrabold text-[12.5px] text-black">Template CSV</Text>
-            </Pressable>
+              <Text className="font-bold text-[12.5px] text-black">Template CSV</Text>
+            </MotionPressable>
           </View>
         </View>
 
         {/* Import Picker Card */}
-        <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
-          <Text className="font-extrabold text-[14.5px] text-black">Import Barang dari CSV</Text>
-          <Text className="mt-1 font-medium text-[12px] text-black">
+        <View className="mb-4 rounded-card border border-border bg-white p-4">
+          <Text className="font-extrabold text-[14px] text-black">Import Barang dari CSV</Text>
+          <Text className="mt-1 font-medium text-[12px] leading-4 text-muted">
             Barcode yang sudah ada akan di-update (upsert). Perubahan stok otomatis dicatat di riwayat stok sebagai &quot;Import CSV&quot;.
           </Text>
 
-          <Pressable
+          <MotionPressable
             onPress={() => void handlePickCsv()}
-            className="mt-3.5 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-red bg-red py-3.5"
+            className="mt-3.5 min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
           >
             <FontAwesome6 name="file-arrow-up" size={14} color="#FFFFFF" solid />
             <Text className="font-extrabold text-[13.5px] text-white">
               {selectedFileName ? 'Pilih File CSV Lain' : 'Pilih File CSV'}
             </Text>
-          </Pressable>
+          </MotionPressable>
 
           {selectedFileName ? (
-            <Text className="mt-2 font-semibold text-[11.5px] text-black">
+            <Text className="mt-2 font-semibold text-[11.5px] text-muted">
               File dipilih: {selectedFileName}
             </Text>
           ) : null}
@@ -220,74 +226,80 @@ export default function CsvProductsScreen() {
         {preview ? (
           <View>
             {preview.fatalError ? (
-              <View className="rounded-card bg-red p-4">
-                <Text className="font-extrabold text-[14px] text-white">
+              <View className="rounded-card bg-red-soft p-4">
+                <Text className="font-extrabold text-[14px] text-red">
                   File CSV Tidak Dapat Diproses
                 </Text>
-                <Text className="mt-1 font-medium text-[12.5px] text-white">
+                <Text className="mt-1 font-medium text-[12.5px] text-red">
                   {preview.fatalError}
                 </Text>
               </View>
             ) : (
               <>
-                {/* Summary 2-Column KPI */}
-                <View className="mb-3 flex-row gap-3">
-                  <View className="flex-1 rounded-card border-[1.5px] border-black bg-white p-3.5">
-                    <Text className="font-semibold text-[12px] text-black">Baris Valid</Text>
-                    <Text className="mt-1 font-extrabold text-[22px] text-black">
+                {/* Summary 2-Column Soft Tiles */}
+                <View className="mb-3 flex-row gap-2.5">
+                  <View className="flex-1 rounded-card bg-surface p-3.5">
+                    <Text className="font-semibold text-[12px] text-muted">Baris Valid</Text>
+                    <Text
+                      className="mt-1 font-extrabold text-[22px] text-black"
+                      style={{ fontVariant: ['tabular-nums'] }}
+                    >
                       {preview.validRows.length}
                     </Text>
                   </View>
-                  <View className="flex-1 rounded-card border-[1.5px] border-red bg-red p-3.5">
-                    <Text className="font-semibold text-[12px] text-white">Baris Error</Text>
-                    <Text className="mt-1 font-extrabold text-[22px] text-white">
+                  <View className="flex-1 rounded-card bg-red-soft p-3.5">
+                    <Text className="font-semibold text-[12px] text-red">Baris Error</Text>
+                    <Text
+                      className="mt-1 font-extrabold text-[22px] text-red"
+                      style={{ fontVariant: ['tabular-nums'] }}
+                    >
                       {preview.errorRows.length}
                     </Text>
                   </View>
                 </View>
 
-                {/* Preview Tabs */}
-                <View className="mb-3 flex-row gap-2">
-                  <Pressable
+                {/* Segmented Preview Tabs */}
+                <View className="mb-3 flex-row gap-1 rounded-[13px] bg-surface p-1">
+                  <MotionPressable
+                    wrapperClassName="flex-1"
                     onPress={() => setPreviewTab('valid')}
-                    className={`flex-1 items-center rounded-chip border-[1.5px] py-2 ${
-                      previewTab === 'valid'
-                        ? 'border-black bg-black'
-                        : 'border-black bg-white'
+                    scaleTo={0.97}
+                    className={`items-center rounded-[9px] py-2 ${
+                      previewTab === 'valid' ? 'bg-white' : ''
                     }`}
                   >
                     <Text
-                      className={`font-extrabold text-[12px] ${
-                        previewTab === 'valid' ? 'text-white' : 'text-black'
+                      className={`font-bold text-[12px] ${
+                        previewTab === 'valid' ? 'text-black' : 'text-muted'
                       }`}
                     >
                       Valid ({preview.validRows.length})
                     </Text>
-                  </Pressable>
-                  <Pressable
+                  </MotionPressable>
+                  <MotionPressable
+                    wrapperClassName="flex-1"
                     onPress={() => setPreviewTab('error')}
-                    className={`flex-1 items-center rounded-chip border-[1.5px] py-2 ${
-                      previewTab === 'error'
-                        ? 'border-red bg-red'
-                        : 'border-black bg-white'
+                    scaleTo={0.97}
+                    className={`items-center rounded-[9px] py-2 ${
+                      previewTab === 'error' ? 'bg-white' : ''
                     }`}
                   >
                     <Text
-                      className={`font-extrabold text-[12px] ${
-                        previewTab === 'error' ? 'text-white' : 'text-black'
+                      className={`font-bold text-[12px] ${
+                        previewTab === 'error' ? 'text-red' : 'text-muted'
                       }`}
                     >
                       Error ({preview.errorRows.length})
                     </Text>
-                  </Pressable>
+                  </MotionPressable>
                 </View>
 
-                {/* Confirm Partial/Full Import CTA */}
+                {/* Confirm Import CTA */}
                 {preview.validRows.length > 0 ? (
-                  <Pressable
+                  <MotionPressable
                     onPress={() => void handleConfirmImport()}
                     disabled={importMutation.isPending}
-                    className="mb-3.5 flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
+                    className="mb-3.5 min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
                   >
                     {importMutation.isPending ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
@@ -299,32 +311,40 @@ export default function CsvProductsScreen() {
                         ? 'Mengimpor...'
                         : `Impor ${preview.validRows.length} Baris Valid`}
                     </Text>
-                  </Pressable>
+                  </MotionPressable>
                 ) : null}
 
                 {/* Rows List */}
                 {previewTab === 'valid' ? (
-                  <View className="gap-2">
-                    {preview.validRows.slice(0, 50).map((row) => (
-                      <View
-                        key={`v-${row.rowNumber}`}
-                        className="flex-row items-center justify-between rounded-card border-[1.5px] border-black bg-white px-3.5 py-2.5"
-                      >
-                        <View className="flex-1 pr-2">
-                          <Text className="font-extrabold text-[13px] text-black">
-                            Baris {row.rowNumber}: {row.data.name}
-                          </Text>
-                          <Text className="mt-0.5 font-medium text-[11.5px] text-black">
-                            {row.data.barcode ?? 'Tanpa barcode'} • Stok {row.data.stock ?? 0}
+                  <View className="overflow-hidden rounded-card border border-border bg-white">
+                    {preview.validRows.slice(0, 50).map((row, idx) => {
+                      const isLast = idx === Math.min(preview.validRows.length, 50) - 1;
+                      return (
+                        <View
+                          key={`v-${row.rowNumber}`}
+                          className={`flex-row items-center justify-between px-3.5 py-2.5 ${
+                            !isLast ? 'border-b border-border' : ''
+                          }`}
+                        >
+                          <View className="flex-1 pr-2">
+                            <Text className="font-bold text-[13px] text-black">
+                              Baris {row.rowNumber}: {row.data.name}
+                            </Text>
+                            <Text className="mt-0.5 font-medium text-[11.5px] text-muted">
+                              {row.data.barcode ?? 'Tanpa barcode'} • Stok {row.data.stock ?? 0}
+                            </Text>
+                          </View>
+                          <Text
+                            className="font-extrabold text-[13px] text-black"
+                            style={{ fontVariant: ['tabular-nums'] }}
+                          >
+                            {formatRupiah(row.data.sell_price)}
                           </Text>
                         </View>
-                        <Text className="font-extrabold text-[13px] text-black">
-                          {formatRupiah(row.data.sell_price)}
-                        </Text>
-                      </View>
-                    ))}
+                      );
+                    })}
                     {preview.validRows.length > 50 ? (
-                      <Text className="text-center font-semibold text-[11.5px] text-black">
+                      <Text className="py-2.5 text-center font-semibold text-[11.5px] text-muted">
                         Menampilkan 50 dari {preview.validRows.length} baris valid.
                       </Text>
                     ) : null}
@@ -332,8 +352,8 @@ export default function CsvProductsScreen() {
                 ) : (
                   <View className="gap-2">
                     {preview.errorRows.length === 0 ? (
-                      <View className="rounded-card border-[1.5px] border-black bg-white p-4">
-                        <Text className="font-medium text-[12.5px] text-black">
+                      <View className="rounded-card border border-border bg-white p-4">
+                        <Text className="font-medium text-[12.5px] text-muted">
                           Tidak ada baris error. Seluruh data siap diimpor.
                         </Text>
                       </View>
@@ -341,12 +361,12 @@ export default function CsvProductsScreen() {
                       preview.errorRows.map((row) => (
                         <View
                           key={`e-${row.rowNumber}`}
-                          className="rounded-card bg-red px-3.5 py-3"
+                          className="rounded-card bg-red-soft px-3.5 py-3"
                         >
-                          <Text className="font-extrabold text-[13px] text-white">
+                          <Text className="font-extrabold text-[13px] text-red">
                             Baris {row.rowNumber}: {row.rawName}
                           </Text>
-                          <Text className="mt-1 font-medium text-[12px] text-white">
+                          <Text className="mt-1 font-medium text-[12px] text-red">
                             {row.reasons.join(' • ')}
                           </Text>
                         </View>

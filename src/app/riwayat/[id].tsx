@@ -5,13 +5,13 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
 import { PrintFailureModal } from '@/components/printer/PrintFailureModal';
 import { PrinterPickerModal } from '@/components/printer/PrinterPickerModal';
 import { useAuth } from '@/hooks/useAuth';
@@ -128,12 +128,12 @@ export default function SaleDetailScreen() {
             <Text className="font-bold text-[14px] text-black">
               Transaksi tidak ditemukan.
             </Text>
-            <Pressable
+            <MotionPressable
               onPress={() => router.back()}
-              className="rounded-control border-[1.5px] border-black bg-white px-5 py-2.5"
+              className="rounded-control border border-border bg-white px-5 py-2.5"
             >
-              <Text className="font-extrabold text-[13px] text-black">Kembali</Text>
-            </Pressable>
+              <Text className="font-bold text-[13px] text-black">Kembali</Text>
+            </MotionPressable>
           </View>
         )}
       </SafeAreaView>
@@ -146,14 +146,16 @@ export default function SaleDetailScreen() {
     <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row items-center justify-between px-[18px] py-3">
-        <Pressable
+        <MotionPressable
           onPress={() => router.back()}
           accessibilityLabel="Kembali"
-          className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+          className="h-10 w-10 items-center justify-center rounded-full bg-surface"
         >
-          <FontAwesome6 name="chevron-left" size={15} color="#09090B" solid />
-        </Pressable>
-        <Text className="font-extrabold text-[16px] text-black">Detail Struk</Text>
+          <FontAwesome6 name="chevron-left" size={14} color="#09090B" solid />
+        </MotionPressable>
+        <Text className="font-extrabold text-[16px] tracking-[-0.02em] text-black">
+          Detail Struk
+        </Text>
         <View className="h-10 w-10" />
       </View>
 
@@ -162,93 +164,117 @@ export default function SaleDetailScreen() {
         contentContainerStyle={{ paddingBottom: 36 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Status / Header Card */}
-        <View
-          className={`mb-4 rounded-hero p-5 ${
-            isVoid ? 'bg-red' : 'border-[1.5px] border-black bg-white'
-          }`}
-        >
-          <Text
-            className={`font-extrabold text-[11px] uppercase ${
-              isVoid ? 'text-white' : 'text-red'
-            }`}
-          >
-            {isVoid ? 'STATUS: VOID (DIBATALKAN)' : 'STATUS: SELESAI (TUNAI)'}
-          </Text>
-          <Text
-            className={`mt-1 font-extrabold text-[19px] ${
-              isVoid ? 'text-white' : 'text-black'
-            }`}
-          >
-            {sale.receipt_number}
-          </Text>
-          <Text
-            className={`mt-0.5 font-medium text-[12px] ${
-              isVoid ? 'text-white' : 'text-black'
-            }`}
-          >
-            {formatDateTime(sale.created_at)}
-          </Text>
+        {/* Digital Receipt Card */}
+        <View className="mb-4 rounded-card border border-border bg-white p-4">
+          <View className="flex-row items-start justify-between gap-2">
+            <View className="flex-1">
+              <View
+                className={`self-start rounded-[7px] px-2 py-0.5 ${
+                  isVoid ? 'bg-red-soft' : 'bg-surface'
+                }`}
+              >
+                <Text
+                  className={`font-extrabold text-[10.5px] ${
+                    isVoid ? 'text-red' : 'text-muted'
+                  }`}
+                >
+                  {isVoid ? 'VOID · DIBATALKAN' : 'SELESAI · TUNAI'}
+                </Text>
+              </View>
+              <Text
+                className="mt-2 font-extrabold text-[18px] text-black"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
+                {sale.receipt_number}
+              </Text>
+              <Text className="mt-0.5 font-medium text-[12px] text-muted">
+                {formatDateTime(sale.created_at)}
+              </Text>
+            </View>
+            <View
+              className={`h-9 w-9 items-center justify-center rounded-[11px] ${
+                isVoid ? 'bg-red-soft' : 'bg-surface'
+              }`}
+            >
+              <FontAwesome6
+                name={isVoid ? 'ban' : 'receipt'}
+                size={15}
+                color={isVoid ? '#D91E2A' : '#09090B'}
+                solid
+              />
+            </View>
+          </View>
 
           {isVoid && sale.void_reason ? (
-            <View className="mt-3 rounded-control border-[1.5px] border-white px-3 py-2">
-              <Text className="font-bold text-[11.5px] text-white">
+            <View className="mt-3 rounded-control bg-red-soft px-3 py-2.5">
+              <Text className="font-bold text-[12px] text-red">
                 Alasan Void: {sale.void_reason}
               </Text>
               {sale.voided_at ? (
-                <Text className="mt-0.5 font-medium text-[11px] text-white">
+                <Text className="mt-0.5 font-medium text-[11px] text-red">
                   Dibatalkan: {formatDateTime(sale.voided_at)}
                 </Text>
               ) : null}
             </View>
           ) : null}
-        </View>
 
-        {/* Itemized Receipt Card */}
-        <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
-          <Text className="mb-3 font-extrabold text-[14px] text-black">Rincian Item</Text>
+          <View className="my-3.5 border-t border-dashed border-border" />
 
+          {/* Rincian Item */}
           <View className="gap-2.5">
             {(sale.sale_items ?? []).map((item) => (
-              <View
-                key={item.id}
-                className="flex-row items-center justify-between border-b border-dashed border-black pb-2.5"
-              >
-                <View className="flex-1 pr-2">
-                  <Text className="font-extrabold text-[13.5px] text-black">
+              <View key={item.id} className="flex-row items-center justify-between gap-2">
+                <View className="flex-1">
+                  <Text className="font-bold text-[13.5px] text-black">
                     {item.product_name_snapshot}
                   </Text>
-                  <Text className="mt-0.5 font-medium text-[12px] text-black">
+                  <Text
+                    className="mt-0.5 font-medium text-[12px] text-muted"
+                    style={{ fontVariant: ['tabular-nums'] }}
+                  >
                     {item.qty} × {formatRupiah(item.sell_price_snapshot)}
                   </Text>
                 </View>
-                <Text className="font-extrabold text-[13.5px] text-black">
+                <Text
+                  className="font-bold text-[13.5px] text-black"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
                   {formatRupiah(item.subtotal)}
                 </Text>
               </View>
             ))}
           </View>
 
-          <View className="mt-3 gap-1.5">
+          <View className="my-3.5 border-t border-dashed border-border" />
+
+          {/* Total Breakdown */}
+          <View className="gap-1.5">
             <View className="flex-row justify-between">
-              <Text className="font-extrabold text-[15px] text-black">Total</Text>
+              <Text className="font-extrabold text-[14.5px] text-black">Total</Text>
               <Text
-                className={`font-extrabold text-[16px] text-black ${
-                  isVoid ? 'line-through' : ''
+                className={`font-extrabold text-[16.5px] ${
+                  isVoid ? 'text-muted line-through' : 'text-black'
                 }`}
+                style={{ fontVariant: ['tabular-nums'] }}
               >
                 {formatRupiah(sale.total_amount)}
               </Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="font-medium text-[12.5px] text-black">Tunai Diterima</Text>
-              <Text className="font-bold text-[12.5px] text-black">
+              <Text className="font-medium text-[12.5px] text-muted">Tunai Diterima</Text>
+              <Text
+                className="font-bold text-[12.5px] text-black"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
                 {formatRupiah(sale.cash_received)}
               </Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="font-medium text-[12.5px] text-black">Kembalian</Text>
-              <Text className="font-extrabold text-[13px] text-red">
+              <Text className="font-medium text-[12.5px] text-muted">Kembalian</Text>
+              <Text
+                className="font-extrabold text-[13px] text-red"
+                style={{ fontVariant: ['tabular-nums'] }}
+              >
                 {formatRupiah(sale.change_amount)}
               </Text>
             </View>
@@ -257,10 +283,10 @@ export default function SaleDetailScreen() {
 
         {/* Actions */}
         <View className="gap-2.5">
-          <Pressable
+          <MotionPressable
             onPress={() => void handlePrint()}
             disabled={isPrinting}
-            className="flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
+            className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
           >
             {isPrinting ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -268,32 +294,31 @@ export default function SaleDetailScreen() {
               <FontAwesome6 name="print" size={14} color="#FFFFFF" solid />
             )}
             <Text className="font-extrabold text-[13.5px] text-white">Cetak Ulang Struk</Text>
-          </Pressable>
+          </MotionPressable>
 
-          <Pressable
+          <MotionPressable
             onPress={() => void handleSharePdf()}
             disabled={isPrinting}
-            className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3.5"
+            className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
           >
             <FontAwesome6 name="file-pdf" size={14} color="#D91E2A" solid />
-            <Text className="font-extrabold text-[13.5px] text-black">Bagikan PDF</Text>
-          </Pressable>
+            <Text className="font-bold text-[13px] text-black">Bagikan PDF</Text>
+          </MotionPressable>
 
-          {/* Void Button — hanya muncul jika status masih completed (1x, no undo) */}
           {!isVoid ? (
-            <Pressable
+            <MotionPressable
               onPress={() => {
                 setVoidError(null);
                 setVoidReason('');
                 setVoidModalOpen(true);
               }}
-              className="mt-2 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-red bg-white py-3.5"
+              className="mt-1 min-h-[44px] flex-row items-center justify-center gap-2 rounded-control bg-red-soft py-3"
             >
               <FontAwesome6 name="ban" size={14} color="#D91E2A" solid />
-              <Text className="font-extrabold text-[13.5px] text-red">
+              <Text className="font-extrabold text-[13px] text-red">
                 Void Transaksi (Batalkan)
               </Text>
-            </Pressable>
+            </MotionPressable>
           ) : null}
         </View>
       </ScrollView>
@@ -305,16 +330,14 @@ export default function SaleDetailScreen() {
         animationType="fade"
         onRequestClose={() => setVoidModalOpen(false)}
       >
-        <View className="flex-1 items-center justify-center bg-black/60 px-6">
-          <View className="w-full rounded-hero border-[1.5px] border-black bg-white p-5">
+        <View className="flex-1 items-center justify-center bg-black/50 px-6">
+          <View className="w-full rounded-hero border border-border bg-white p-5">
             <Text className="font-extrabold text-[17px] text-black">Void Transaksi?</Text>
-            <Text className="mt-1 font-medium text-[12.5px] text-black">
+            <Text className="mt-1 font-medium text-[12.5px] leading-5 text-muted">
               Pembatalan hanya dapat dilakukan 1 kali dan tidak dapat dikembalikan (no undo). Stok seluruh barang akan dikembalikan otomatis.
             </Text>
 
-            <Text className="mb-1.5 mt-4 font-bold text-[12px] text-black">
-              Alasan Void *
-            </Text>
+            <Text className="mb-1.5 mt-4 font-bold text-[12px] text-black">Alasan Void *</Text>
             <TextInput
               value={voidReason}
               onChangeText={(t) => {
@@ -322,8 +345,8 @@ export default function SaleDetailScreen() {
                 setVoidError(null);
               }}
               placeholder="Contoh: Salah input barang / pembeli batal"
-              placeholderTextColor="#09090B"
-              className="rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-semibold text-[13px] text-black"
+              placeholderTextColor="#71717A"
+              className="rounded-control bg-surface px-3.5 py-2.5 font-semibold text-[13px] text-black"
             />
 
             {voidError ? (
@@ -331,10 +354,10 @@ export default function SaleDetailScreen() {
             ) : null}
 
             <View className="mt-4 gap-2">
-              <Pressable
+              <MotionPressable
                 onPress={() => void handleConfirmVoid()}
                 disabled={voidMutation.isPending}
-                className="flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
+                className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
               >
                 {voidMutation.isPending ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -344,14 +367,14 @@ export default function SaleDetailScreen() {
                 <Text className="font-extrabold text-[13.5px] text-white">
                   {voidMutation.isPending ? 'Memproses...' : 'Konfirmasi Void'}
                 </Text>
-              </Pressable>
+              </MotionPressable>
 
-              <Pressable
+              <MotionPressable
                 onPress={() => setVoidModalOpen(false)}
-                className="items-center rounded-control border-[1.5px] border-black bg-white py-3"
+                className="min-h-[44px] items-center justify-center rounded-control border border-border bg-white py-3"
               >
-                <Text className="font-extrabold text-[13px] text-black">Batal</Text>
-              </Pressable>
+                <Text className="font-bold text-[13px] text-black">Batal</Text>
+              </MotionPressable>
             </View>
           </View>
         </View>

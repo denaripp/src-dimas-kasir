@@ -4,12 +4,12 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
 import {
   useAdjustStockMutation,
   useProductByIdQuery,
@@ -81,38 +81,43 @@ export default function StockManageScreen() {
     }
   };
 
-  const renderMovement = ({ item }: { item: StockMovementRow }) => {
+  const renderMovement = ({
+    item,
+    index,
+  }: {
+    item: StockMovementRow;
+    index: number;
+  }) => {
     const isPositive = item.qty_delta > 0;
     const isVoid = item.type === 'void';
+    const isFirst = index === 0;
+    const isLast = index === movements.length - 1;
 
     return (
       <View
-        className={`mb-2.5 flex-row items-center justify-between gap-2.5 rounded-card border-[1.5px] px-3.5 py-3 ${
-          isVoid ? 'border-red bg-red' : 'border-black bg-white'
-        }`}
+        className={`flex-row items-center justify-between gap-2.5 border-x border-border bg-white px-3.5 py-3 ${
+          isFirst ? 'rounded-t-card border-t' : ''
+        } ${isLast ? 'rounded-b-card border-b' : 'border-b border-border'}`}
       >
         <View className="flex-1">
-          <Text
-            className={`font-extrabold text-[13.5px] ${
-              isVoid ? 'text-white' : 'text-black'
-            }`}
-          >
-            {MOVEMENT_LABELS[item.type]}
-          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <Text className="font-bold text-[13.5px] text-black">
+              {MOVEMENT_LABELS[item.type]}
+            </Text>
+            {isVoid ? (
+              <View className="rounded-[6px] bg-red-soft px-1.5 py-0.5">
+                <Text className="font-extrabold text-[9.5px] text-red">VOID</Text>
+              </View>
+            ) : null}
+          </View>
           {item.note ? (
-            <Text
-              className={`mt-0.5 font-medium text-[12px] ${
-                isVoid ? 'text-white' : 'text-black'
-              }`}
-              numberOfLines={2}
-            >
+            <Text className="mt-0.5 font-medium text-[12px] text-muted" numberOfLines={2}>
               {item.note}
             </Text>
           ) : null}
           <Text
-            className={`mt-1 font-medium text-[11px] ${
-              isVoid ? 'text-white' : 'text-black'
-            }`}
+            className="mt-0.5 font-medium text-[11px] text-muted"
+            style={{ fontVariant: ['tabular-nums'] }}
           >
             {formatDateTime(item.created_at)} • Stok sesudah: {item.stock_after}
           </Text>
@@ -120,8 +125,9 @@ export default function StockManageScreen() {
 
         <Text
           className={`font-extrabold text-[15px] ${
-            isVoid ? 'text-white' : isPositive ? 'text-black' : 'text-red'
+            isPositive ? 'text-black' : 'text-red'
           }`}
+          style={{ fontVariant: ['tabular-nums'] }}
         >
           {isPositive ? `+${item.qty_delta}` : `${item.qty_delta}`}
         </Text>
@@ -141,14 +147,16 @@ export default function StockManageScreen() {
     <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row items-center justify-between px-[18px] py-3">
-        <Pressable
+        <MotionPressable
           onPress={() => router.back()}
           accessibilityLabel="Kembali"
-          className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+          className="h-10 w-10 items-center justify-center rounded-full bg-surface"
         >
-          <FontAwesome6 name="chevron-left" size={15} color="#09090B" solid />
-        </Pressable>
-        <Text className="font-extrabold text-[16px] text-black">Kelola Stok</Text>
+          <FontAwesome6 name="chevron-left" size={14} color="#09090B" solid />
+        </MotionPressable>
+        <Text className="font-extrabold text-[16px] tracking-[-0.02em] text-black">
+          Kelola Stok
+        </Text>
         <View className="h-10 w-10" />
       </View>
 
@@ -160,84 +168,100 @@ export default function StockManageScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View className="mb-4">
-            {/* Product Summary Card */}
-            <View className="mb-3.5 rounded-hero bg-red p-5">
-              <Text className="font-semibold text-[11.5px] text-white">
+            {/* Product Summary Hero Card */}
+            <View
+              className="mb-4 rounded-hero bg-red p-5"
+              style={{
+                shadowColor: '#D91E2A',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.16,
+                shadowRadius: 20,
+                elevation: 4,
+              }}
+            >
+              <Text className="font-semibold text-[11.5px] text-white/85">
                 {product?.barcode ?? 'Tanpa barcode'}
+                {product?.category ? ` • ${product.category}` : ''}
               </Text>
-              <Text className="mt-0.5 font-extrabold text-[19px] text-white">
+              <Text className="mt-0.5 font-extrabold text-[18.5px] text-white">
                 {product?.name ?? 'Barang'}
               </Text>
-              <View className="mt-3 flex-row items-baseline justify-between">
+              <View className="my-3 h-[1px] bg-white/20" />
+              <View className="flex-row items-baseline justify-between">
                 <View>
-                  <Text className="font-medium text-[11px] text-white">Stok Saat Ini</Text>
-                  <Text className="font-extrabold text-[26px] text-white">
-                    {currentStock}
+                  <Text className="font-medium text-[11px] text-white/85">Stok Saat Ini</Text>
+                  <Text
+                    className="mt-0.5 font-extrabold text-[25px] text-white"
+                    style={{ fontVariant: ['tabular-nums'] }}
+                  >
+                    {currentStock} unit
                   </Text>
                 </View>
                 <View className="items-end">
-                  <Text className="font-medium text-[11px] text-white">Stok Minimum</Text>
-                  <Text className="font-extrabold text-[17px] text-white">
-                    {product?.min_stock ?? 0}
+                  <Text className="font-medium text-[11px] text-white/85">Batas Minimum</Text>
+                  <Text
+                    className="mt-0.5 font-extrabold text-[16px] text-white"
+                    style={{ fontVariant: ['tabular-nums'] }}
+                  >
+                    {product?.min_stock ?? 0} unit
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Mode Switcher */}
-            <View className="mb-3 flex-row gap-2">
-              <Pressable
+            {/* Segmented Mode Switcher */}
+            <View className="mb-3.5 flex-row gap-1 rounded-[13px] bg-surface p-1">
+              <MotionPressable
+                wrapperClassName="flex-1"
                 onPress={() => {
                   setMode('stok_masuk');
                   setDirection(1);
                   setFormError(null);
                 }}
-                className={`flex-1 items-center rounded-chip border-[1.5px] py-2.5 ${
-                  mode === 'stok_masuk'
-                    ? 'border-red bg-red'
-                    : 'border-black bg-white'
+                scaleTo={0.97}
+                className={`items-center rounded-[9px] py-2.5 ${
+                  mode === 'stok_masuk' ? 'bg-white' : ''
                 }`}
               >
                 <Text
-                  className={`font-extrabold text-[12.5px] ${
-                    mode === 'stok_masuk' ? 'text-white' : 'text-black'
+                  className={`font-bold text-[12px] ${
+                    mode === 'stok_masuk' ? 'text-black' : 'text-muted'
                   }`}
                 >
                   Stok Masuk
                 </Text>
-              </Pressable>
+              </MotionPressable>
 
-              <Pressable
+              <MotionPressable
+                wrapperClassName="flex-1"
                 onPress={() => {
                   setMode('penyesuaian');
                   setFormError(null);
                 }}
-                className={`flex-1 items-center rounded-chip border-[1.5px] py-2.5 ${
-                  mode === 'penyesuaian'
-                    ? 'border-red bg-red'
-                    : 'border-black bg-white'
+                scaleTo={0.97}
+                className={`items-center rounded-[9px] py-2.5 ${
+                  mode === 'penyesuaian' ? 'bg-white' : ''
                 }`}
               >
                 <Text
-                  className={`font-extrabold text-[12.5px] ${
-                    mode === 'penyesuaian' ? 'text-white' : 'text-black'
+                  className={`font-bold text-[12px] ${
+                    mode === 'penyesuaian' ? 'text-black' : 'text-muted'
                   }`}
                 >
                   Penyesuaian
                 </Text>
-              </Pressable>
+              </MotionPressable>
             </View>
 
             {/* Form Card */}
-            <View className="mb-5 rounded-card border-[1.5px] border-black bg-white p-4">
+            <View className="mb-5 rounded-card border border-border bg-white p-4">
               {mode === 'penyesuaian' ? (
                 <View className="mb-3 flex-row gap-2">
-                  <Pressable
+                  <MotionPressable
+                    wrapperClassName="flex-1"
                     onPress={() => setDirection(1)}
-                    className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-chip border-[1.5px] py-2 ${
-                      direction === 1
-                        ? 'border-black bg-black'
-                        : 'border-black bg-white'
+                    className={`flex-row items-center justify-center gap-1.5 rounded-chip border py-2 ${
+                      direction === 1 ? 'border-black bg-black' : 'border-border bg-white'
                     }`}
                   >
                     <FontAwesome6
@@ -253,13 +277,13 @@ export default function StockManageScreen() {
                     >
                       Tambah
                     </Text>
-                  </Pressable>
-                  <Pressable
+                  </MotionPressable>
+
+                  <MotionPressable
+                    wrapperClassName="flex-1"
                     onPress={() => setDirection(-1)}
-                    className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-chip border-[1.5px] py-2 ${
-                      direction === -1
-                        ? 'border-red bg-red'
-                        : 'border-black bg-white'
+                    className={`flex-row items-center justify-center gap-1.5 rounded-chip border py-2 ${
+                      direction === -1 ? 'border-red bg-red' : 'border-border bg-white'
                     }`}
                   >
                     <FontAwesome6
@@ -275,7 +299,7 @@ export default function StockManageScreen() {
                     >
                       Kurangi
                     </Text>
-                  </Pressable>
+                  </MotionPressable>
                 </View>
               ) : null}
 
@@ -287,8 +311,8 @@ export default function StockManageScreen() {
                 onChangeText={(t) => setQtyText(t.replace(/[^0-9]/g, ''))}
                 keyboardType="number-pad"
                 placeholder="0"
-                placeholderTextColor="#09090B"
-                className="mb-3 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-extrabold text-[15px] text-black"
+                placeholderTextColor="#71717A"
+                className="mb-3 rounded-control bg-surface px-3.5 py-2.5 font-extrabold text-[15px] text-black"
               />
 
               <Text className="mb-1.5 font-bold text-[12px] text-black">
@@ -302,18 +326,19 @@ export default function StockManageScreen() {
                     ? 'Contoh: Barang rusak / hitung ulang fisik'
                     : 'Contoh: Belanja dari agen'
                 }
-                placeholderTextColor="#09090B"
-                className="mb-3 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-medium text-[13px] text-black"
+                placeholderTextColor="#71717A"
+                className="mb-3 rounded-control bg-surface px-3.5 py-2.5 font-medium text-[13px] text-black"
               />
 
-              <View className="mb-3 flex-row items-center justify-between border-t-[1.5px] border-dashed border-black pt-2.5">
-                <Text className="font-semibold text-[12px] text-black">Perkiraan Stok Akhir</Text>
+              <View className="mb-3.5 flex-row items-center justify-between border-t border-dashed border-border pt-2.5">
+                <Text className="font-semibold text-[12px] text-muted">Perkiraan Stok Akhir</Text>
                 <Text
                   className={`font-extrabold text-[15px] ${
                     projectedStock < 0 ? 'text-red' : 'text-black'
                   }`}
+                  style={{ fontVariant: ['tabular-nums'] }}
                 >
-                  {projectedStock}
+                  {projectedStock} unit
                 </Text>
               </View>
 
@@ -321,10 +346,10 @@ export default function StockManageScreen() {
                 <Text className="mb-3 font-bold text-[12px] text-red">{formError}</Text>
               ) : null}
 
-              <Pressable
+              <MotionPressable
                 onPress={() => void handleSubmit()}
                 disabled={adjustMutation.isPending}
-                className="flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
+                className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
               >
                 {adjustMutation.isPending ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -334,7 +359,7 @@ export default function StockManageScreen() {
                 <Text className="font-extrabold text-[13.5px] text-white">
                   {adjustMutation.isPending ? 'Memproses...' : 'Simpan Mutasi Stok'}
                 </Text>
-              </Pressable>
+              </MotionPressable>
             </View>
 
             <Text className="font-extrabold text-[14px] text-black">
@@ -346,8 +371,8 @@ export default function StockManageScreen() {
           loadingMovements ? (
             <ActivityIndicator size="small" color="#D91E2A" />
           ) : (
-            <View className="rounded-card border-[1.5px] border-black bg-white p-4">
-              <Text className="font-medium text-[12.5px] text-black">
+            <View className="rounded-card border border-border bg-white p-4">
+              <Text className="font-medium text-[12.5px] text-muted">
                 Belum ada riwayat mutasi untuk barang ini.
               </Text>
             </View>

@@ -7,13 +7,13 @@ import {
   Alert,
   Image,
   Modal,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
 import { PrinterPickerModal } from '@/components/printer/PrinterPickerModal';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -175,14 +175,16 @@ export default function ProfilScreen() {
     <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row items-center justify-between px-[18px] py-3">
-        <Pressable
+        <MotionPressable
           onPress={() => router.back()}
           accessibilityLabel="Kembali"
-          className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+          className="h-10 w-10 items-center justify-center rounded-full bg-surface"
         >
-          <FontAwesome6 name="chevron-left" size={15} color="#09090B" solid />
-        </Pressable>
-        <Text className="font-extrabold text-[16px] text-black">Profil &amp; Pengaturan</Text>
+          <FontAwesome6 name="chevron-left" size={14} color="#09090B" solid />
+        </MotionPressable>
+        <Text className="font-extrabold text-[16px] tracking-[-0.02em] text-black">
+          Profil Toko &amp; Printer
+        </Text>
         <View className="h-10 w-10" />
       </View>
 
@@ -192,15 +194,15 @@ export default function ProfilScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Logo & Akun Google */}
-        <View className="mb-4 flex-row items-center gap-3.5 rounded-card border-[1.5px] border-black bg-white p-4">
+        <View className="mb-3.5 flex-row items-center gap-3.5 rounded-card border border-border bg-white p-4">
           {logoUrl ? (
             <Image
               source={{ uri: logoUrl }}
-              className="h-16 w-16 rounded-full border-[1.5px] border-black"
+              className="h-14 w-14 rounded-2xl border border-border"
             />
           ) : (
-            <View className="h-16 w-16 items-center justify-center rounded-full bg-red">
-              <FontAwesome6 name="store" size={22} color="#FFFFFF" solid />
+            <View className="h-14 w-14 items-center justify-center rounded-2xl bg-red">
+              <FontAwesome6 name="store" size={20} color="#FFFFFF" solid />
             </View>
           )}
 
@@ -208,94 +210,94 @@ export default function ProfilScreen() {
             <Text className="font-extrabold text-[15px] text-black" numberOfLines={1}>
               {store?.name ?? 'Toko Saya'}
             </Text>
-            <Text className="mt-0.5 font-medium text-[12px] text-black" numberOfLines={1}>
+            <Text className="mt-0.5 font-medium text-[12px] text-muted" numberOfLines={1}>
               {user?.email ?? '-'}
             </Text>
-            <Pressable
+            <MotionPressable
               onPress={() => void handlePickLogo()}
               disabled={uploadLogo.isPending}
-              className="mt-2 self-start rounded-chip border-[1.5px] border-black bg-white px-3 py-1"
+              className="mt-2 self-start rounded-[9px] border border-border bg-white px-3 py-1.5"
             >
-              <Text className="font-extrabold text-[11px] text-black">
+              <Text className="font-bold text-[11.5px] text-black">
                 {uploadLogo.isPending ? 'Mengunggah...' : 'Ubah Logo Toko'}
               </Text>
-            </Pressable>
+            </MotionPressable>
           </View>
         </View>
 
         {/* Form Profil Toko & Struk */}
-        <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
-          <Text className="mb-3 font-extrabold text-[14.5px] text-black">
+        <View className="mb-3.5 rounded-card border border-border bg-white p-4">
+          <Text className="mb-3 font-extrabold text-[14px] text-black">
             Informasi Toko &amp; Struk
           </Text>
 
-          <Text className="mb-1 font-bold text-[12px] text-black">Nama Toko *</Text>
+          <Text className="mb-1.5 font-bold text-[12px] text-black">Nama Toko *</Text>
           <TextInput
             value={name}
             onChangeText={setName}
             placeholder="Toko Saya"
-            placeholderTextColor="#09090B"
-            className="mb-3 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-semibold text-[13px] text-black"
+            placeholderTextColor="#71717A"
+            className="mb-3 rounded-control bg-surface px-3.5 py-2.5 font-semibold text-[13px] text-black"
           />
 
-          <Text className="mb-1 font-bold text-[12px] text-black">Alamat Toko</Text>
+          <Text className="mb-1.5 font-bold text-[12px] text-black">Alamat Toko</Text>
           <TextInput
             value={address}
             onChangeText={setAddress}
             placeholder="Jl. Contoh No. 10"
-            placeholderTextColor="#09090B"
-            className="mb-3 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-medium text-[13px] text-black"
+            placeholderTextColor="#71717A"
+            className="mb-3 rounded-control bg-surface px-3.5 py-2.5 font-medium text-[13px] text-black"
           />
 
-          <Text className="mb-1 font-bold text-[12px] text-black">No. HP / WhatsApp</Text>
+          <Text className="mb-1.5 font-bold text-[12px] text-black">No. HP / WhatsApp</Text>
           <TextInput
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
             placeholder="0812xxxxxxxx"
-            placeholderTextColor="#09090B"
-            className="mb-3 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-medium text-[13px] text-black"
+            placeholderTextColor="#71717A"
+            className="mb-3 rounded-control bg-surface px-3.5 py-2.5 font-medium text-[13px] text-black"
           />
 
-          <Text className="mb-1 font-bold text-[12px] text-black">Teks Footer Struk</Text>
+          <Text className="mb-1.5 font-bold text-[12px] text-black">Teks Footer Struk</Text>
           <TextInput
             value={receiptFooter}
             onChangeText={setReceiptFooter}
             placeholder="Terima kasih telah berbelanja!"
-            placeholderTextColor="#09090B"
-            className="mb-3 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-medium text-[13px] text-black"
+            placeholderTextColor="#71717A"
+            className="mb-3 rounded-control bg-surface px-3.5 py-2.5 font-medium text-[13px] text-black"
           />
 
           <Text className="mb-1.5 font-bold text-[12px] text-black">
             Ukuran Kertas Thermal
           </Text>
-          <View className="mb-4 flex-row gap-2.5">
+          <View className="mb-4 flex-row gap-1 rounded-[13px] bg-surface p-1">
             {([58, 80] as PaperSize[]).map((size) => {
               const active = paperSize === size;
               return (
-                <Pressable
+                <MotionPressable
                   key={size}
+                  wrapperClassName="flex-1"
                   onPress={() => setPaperSize(size)}
-                  className={`flex-1 items-center rounded-chip border-[1.5px] py-2.5 ${
-                    active ? 'border-red bg-red' : 'border-black bg-white'
-                  }`}
+                  scaleTo={0.97}
+                  className={`items-center rounded-[9px] py-2 ${active ? 'bg-white' : ''}`}
                 >
                   <Text
-                    className={`font-extrabold text-[12.5px] ${
-                      active ? 'text-white' : 'text-black'
+                    className={`font-bold text-[12px] ${
+                      active ? 'text-black' : 'text-muted'
                     }`}
                   >
                     {size}mm ({size === 58 ? '32 kar' : '48 kar'})
                   </Text>
-                </Pressable>
+                </MotionPressable>
               );
             })}
           </View>
 
-          <Pressable
+          <MotionPressable
             onPress={() => void handleSaveProfile()}
             disabled={updateProfile.isPending}
-            className="flex-row items-center justify-center gap-2 rounded-control bg-red py-3.5"
+            className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
           >
             {updateProfile.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -305,35 +307,46 @@ export default function ProfilScreen() {
             <Text className="font-extrabold text-[13.5px] text-white">
               {updateProfile.isPending ? 'Menyimpan...' : 'Simpan Pengaturan'}
             </Text>
-          </Pressable>
+          </MotionPressable>
         </View>
 
         {/* Pengaturan Printer Thermal Bluetooth */}
-        <View className="mb-4 rounded-card border-[1.5px] border-black bg-white p-4">
-          <Text className="font-extrabold text-[14.5px] text-black">
-            Printer Thermal Bluetooth
-          </Text>
-          <Text className="mt-1 font-medium text-[12px] text-black">
-            {selectedPrinter
-              ? `${selectedPrinter.deviceName} (${selectedPrinter.macAddress})`
-              : 'Belum ada printer dipilih. Transaksi tetap dapat dilakukan dan dibagikan sebagai PDF.'}
-          </Text>
+        <View className="mb-3.5 rounded-card border border-border bg-white p-4">
+          <View className="flex-row items-start justify-between gap-2">
+            <View className="flex-1">
+              <Text className="font-extrabold text-[14px] text-black">
+                Printer Thermal Bluetooth
+              </Text>
+              <Text className="mt-1 font-medium text-[12px] leading-4 text-muted">
+                {selectedPrinter
+                  ? `${selectedPrinter.deviceName} (${selectedPrinter.macAddress})`
+                  : 'Belum ada printer dipilih. Struk tetap bisa dibagikan sebagai PDF.'}
+              </Text>
+            </View>
+            {selectedPrinter ? (
+              <View className="rounded-[7px] bg-surface px-2 py-0.5">
+                <Text className="font-bold text-[10.5px] text-muted">Terpilih</Text>
+              </View>
+            ) : null}
+          </View>
 
           <View className="mt-3.5 flex-row gap-2.5">
-            <Pressable
+            <MotionPressable
+              wrapperClassName="flex-1"
               onPress={() => setPrinterModalOpen(true)}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3"
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
             >
               <FontAwesome6 name="print" size={13} color="#09090B" solid />
-              <Text className="font-extrabold text-[12.5px] text-black">
+              <Text className="font-bold text-[12.5px] text-black">
                 {selectedPrinter ? 'Ganti Printer' : 'Pilih Printer'}
               </Text>
-            </Pressable>
+            </MotionPressable>
 
-            <Pressable
+            <MotionPressable
+              wrapperClassName="flex-1"
               onPress={() => void handleTestPrint()}
               disabled={isTestingPrint}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-red bg-red py-3"
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
             >
               {isTestingPrint ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -341,51 +354,52 @@ export default function ProfilScreen() {
                 <FontAwesome6 name="receipt" size={13} color="#FFFFFF" solid />
               )}
               <Text className="font-extrabold text-[12.5px] text-white">Tes Cetak</Text>
-            </Pressable>
+            </MotionPressable>
           </View>
         </View>
 
         {/* Shortcut Kategori Pengeluaran & Logout */}
-        <View className="mb-5 gap-2.5">
-          <Pressable
+        <View className="mb-4 gap-2.5">
+          <MotionPressable
             onPress={() => router.push('/keuangan')}
-            className="flex-row items-center justify-between rounded-card border-[1.5px] border-black bg-white px-4 py-3.5"
+            scaleTo={0.985}
+            className="flex-row items-center justify-between rounded-card border border-border bg-white px-4 py-3.5"
           >
             <View className="flex-row items-center gap-3">
-              <FontAwesome6 name="tags" size={15} color="#09090B" solid />
-              <Text className="font-extrabold text-[13.5px] text-black">
+              <FontAwesome6 name="tags" size={14} color="#09090B" solid />
+              <Text className="font-bold text-[13.5px] text-black">
                 Kelola Kategori Pengeluaran
               </Text>
             </View>
-            <FontAwesome6 name="chevron-right" size={13} color="#09090B" solid />
-          </Pressable>
+            <FontAwesome6 name="chevron-right" size={12} color="#71717A" solid />
+          </MotionPressable>
 
-          <Pressable
+          <MotionPressable
             onPress={() => void signOut()}
-            className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3.5"
+            className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
           >
             <FontAwesome6 name="right-from-bracket" size={14} color="#09090B" solid />
-            <Text className="font-extrabold text-[13.5px] text-black">Keluar (Logout)</Text>
-          </Pressable>
+            <Text className="font-bold text-[13.5px] text-black">Keluar (Logout)</Text>
+          </MotionPressable>
         </View>
 
         {/* Zona Berbahaya: Hapus Akun Permanen (PRD 3.11) */}
-        <View className="rounded-card border-[1.5px] border-red bg-white p-4">
-          <Text className="font-extrabold text-[14px] text-red">Hapus Akun Permanen</Text>
-          <Text className="mt-1 font-medium text-[12px] text-black">
-            Menghapus permanen seluruh data toko, barang, transaksi, riwayat stok, pengeluaran, logo, dan akun Google Anda. Tindakan ini tidak dapat dipulihkan.
+        <View className="rounded-card border border-red/30 bg-white p-4">
+          <Text className="font-extrabold text-[13.5px] text-red">Hapus Akun Permanen</Text>
+          <Text className="mt-1 font-medium text-[12px] leading-4 text-muted">
+            Menghapus permanen seluruh data toko, barang, foto produk, transaksi, riwayat stok, pengeluaran, logo, dan akun Google Anda. Tindakan ini tidak dapat dipulihkan.
           </Text>
-          <Pressable
+          <MotionPressable
             onPress={() => {
               setConfirmStoreName('');
               setDeleteError(null);
               setDeleteModalOpen(true);
             }}
-            className="mt-3.5 flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
+            className="mt-3.5 min-h-[44px] flex-row items-center justify-center gap-2 rounded-control bg-red-soft py-3"
           >
-            <FontAwesome6 name="trash" size={13} color="#FFFFFF" solid />
-            <Text className="font-extrabold text-[13px] text-white">Hapus Akun Permanen</Text>
-          </Pressable>
+            <FontAwesome6 name="trash" size={13} color="#D91E2A" solid />
+            <Text className="font-extrabold text-[13px] text-red">Hapus Akun Permanen</Text>
+          </MotionPressable>
         </View>
       </ScrollView>
 
@@ -396,12 +410,12 @@ export default function ProfilScreen() {
         animationType="fade"
         onRequestClose={() => setDeleteModalOpen(false)}
       >
-        <View className="flex-1 items-center justify-center bg-black/60 px-6">
-          <View className="w-full rounded-hero border-[1.5px] border-black bg-white p-5">
+        <View className="flex-1 items-center justify-center bg-black/50 px-6">
+          <View className="w-full rounded-hero border border-border bg-white p-5">
             <Text className="font-extrabold text-[17px] text-red">
               Konfirmasi Hapus Akun
             </Text>
-            <Text className="mt-1.5 font-medium text-[12.5px] text-black">
+            <Text className="mt-1.5 font-medium text-[12.5px] leading-5 text-muted">
               Ketik ulang nama toko Anda secara persis:{' '}
               <Text className="font-extrabold text-black">{store?.name ?? 'Toko Saya'}</Text>
             </Text>
@@ -413,8 +427,8 @@ export default function ProfilScreen() {
                 setDeleteError(null);
               }}
               placeholder={store?.name ?? 'Toko Saya'}
-              placeholderTextColor="#09090B"
-              className="mt-3.5 rounded-control border-[1.5px] border-black bg-white px-3.5 py-2.5 font-bold text-[13.5px] text-black"
+              placeholderTextColor="#71717A"
+              className="mt-3.5 rounded-control bg-surface px-3.5 py-2.5 font-bold text-[13.5px] text-black"
             />
 
             {deleteError ? (
@@ -422,13 +436,13 @@ export default function ProfilScreen() {
             ) : null}
 
             <View className="mt-4 gap-2">
-              <Pressable
+              <MotionPressable
                 onPress={() => void handleConfirmDeleteAccount()}
                 disabled={!exactStoreNameMatch || deleteAccount.isPending}
-                className={`flex-row items-center justify-center gap-2 rounded-control border-[1.5px] py-3.5 ${
+                className={`min-h-[46px] flex-row items-center justify-center gap-2 rounded-control py-3 ${
                   exactStoreNameMatch && !deleteAccount.isPending
-                    ? 'border-red bg-red'
-                    : 'border-dashed border-black bg-white'
+                    ? 'bg-red'
+                    : 'bg-surface'
                 }`}
               >
                 {deleteAccount.isPending ? (
@@ -437,26 +451,26 @@ export default function ProfilScreen() {
                   <FontAwesome6
                     name="trash"
                     size={13}
-                    color={exactStoreNameMatch ? '#FFFFFF' : '#09090B'}
+                    color={exactStoreNameMatch ? '#FFFFFF' : '#71717A'}
                     solid
                   />
                 )}
                 <Text
                   className={`font-extrabold text-[13.5px] ${
-                    exactStoreNameMatch ? 'text-white' : 'text-black'
+                    exactStoreNameMatch ? 'text-white' : 'text-muted'
                   }`}
                 >
                   {deleteAccount.isPending ? 'Menghapus...' : 'Hapus Permanen Sekarang'}
                 </Text>
-              </Pressable>
+              </MotionPressable>
 
-              <Pressable
+              <MotionPressable
                 onPress={() => setDeleteModalOpen(false)}
                 disabled={deleteAccount.isPending}
-                className="items-center rounded-control border-[1.5px] border-black bg-white py-3"
+                className="min-h-[44px] items-center justify-center rounded-control border border-border bg-white py-3"
               >
-                <Text className="font-extrabold text-[13px] text-black">Batal</Text>
-              </Pressable>
+                <Text className="font-bold text-[13px] text-black">Batal</Text>
+              </MotionPressable>
             </View>
           </View>
         </View>
