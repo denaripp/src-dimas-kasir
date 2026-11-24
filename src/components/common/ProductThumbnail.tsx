@@ -1,5 +1,7 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import { Image, View } from 'react-native';
+import { Image } from 'expo-image';
+import { memo, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 interface ProductThumbnailProps {
   imageUrl?: string | null;
@@ -10,11 +12,18 @@ interface ProductThumbnailProps {
   className?: string;
 }
 
+const styles = StyleSheet.create({
+  fullImage: {
+    width: '100%',
+    height: '100%',
+  },
+});
+
 /**
  * Thumbnail foto produk seragam untuk Beranda, Barang, Katalog Kasir, Sheet Checkout, & Laporan.
- * Menampilkan foto produk jika ada, atau kotak permukaan netral #F7F7F8 dengan ikon bersih.
+ * Memakai expo-image dengan memory+disk cache & recyclingKey agar scroll 60fps tanpa kedip.
  */
-export function ProductThumbnail({
+export const ProductThumbnail = memo(function ProductThumbnail({
   imageUrl,
   size = 48,
   fillWidth = false,
@@ -22,9 +31,13 @@ export function ProductThumbnail({
   iconSize = 18,
   className = '',
 }: ProductThumbnailProps) {
-  const dimensionStyle = fillWidth
-    ? { width: '100%' as const, aspectRatio: aspectRatio ?? 4 / 3 }
-    : { width: size, height: size };
+  const dimensionStyle = useMemo(
+    () =>
+      fillWidth
+        ? { width: '100%' as const, aspectRatio: aspectRatio ?? 4 / 3 }
+        : { width: size, height: size },
+    [fillWidth, aspectRatio, size],
+  );
 
   return (
     <View
@@ -33,13 +46,16 @@ export function ProductThumbnail({
     >
       {imageUrl ? (
         <Image
-          source={{ uri: imageUrl }}
-          style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
+          source={imageUrl}
+          style={styles.fullImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={120}
+          recyclingKey={imageUrl}
         />
       ) : (
         <FontAwesome6 name="cube" size={iconSize} color="#71717A" solid />
       )}
     </View>
   );
-}
+});

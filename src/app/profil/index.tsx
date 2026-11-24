@@ -1,11 +1,11 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   ScrollView,
   Text,
@@ -100,6 +100,7 @@ export default function ProfilScreen() {
         receiptFooter,
         paperSize,
         logoUrl: publicUrl,
+        previousLogoUrl: store.logo_url ?? null,
       });
       Alert.alert('Berhasil', 'Logo toko diperbarui.');
     } catch (err) {
@@ -197,8 +198,11 @@ export default function ProfilScreen() {
         <View className="mb-3.5 flex-row items-center gap-3.5 rounded-card border border-border bg-white p-4">
           {logoUrl ? (
             <Image
-              source={{ uri: logoUrl }}
-              className="h-14 w-14 rounded-2xl border border-border"
+              source={logoUrl}
+              style={{ width: 56, height: 56, borderRadius: 16, borderWidth: 1, borderColor: '#E4E4E7' }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={120}
             />
           ) : (
             <View className="h-14 w-14 items-center justify-center rounded-2xl bg-red">

@@ -50,19 +50,21 @@ export function formatIsoDateLocal(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+const ID_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
+
 /**
- * Format tanggal dan jam lokal perangkat (contoh: 23 Nov 2026, 19.42).
+ * Format tanggal dan jam lokal perangkat (contoh: 23 Nov 2026, 19:42).
  */
 export function formatDateTime(input: Date | string | number): string {
   const date = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(date.getTime())) {
     return '-';
   }
-  const datePart = new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+  const datePart = ID_DATE_FORMATTER.format(date);
   const timePart = formatTimeOnly(date);
   return `${datePart}, ${timePart}`;
 }

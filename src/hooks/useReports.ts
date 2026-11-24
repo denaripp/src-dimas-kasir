@@ -1,11 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  computeReportSummary,
-  type ReportSummary,
-  type SaleWithItems,
-} from '@/lib/reportCalc';
+import { toUserFriendlyError } from '@/lib/errorMessage';
+import type { DailySalesPoint, ReportSummary, TopProductItem } from '@/lib/reportCalc';
 import { supabase } from '@/lib/supabase';
-import type { ExpenseRow } from '@/types/database';
 
 export interface PeriodReportParams {
   storeId: string | undefined;
@@ -13,6 +9,54 @@ export interface PeriodReportParams {
   endIso: string;
   startDateLocal: string; // YYYY-MM-DD
   endDateLocal: string; // YYYY-MM-DD
+}
+
+interface RawReportRpcPayload {
+  totalSales?: number | string;
+  completedCount?: number | string;
+  voidCount?: number | string;
+  grossProfit?: number | string;
+  totalExpenses?: number | string;
+  netProfit?: number | string;
+  topProducts?: {
+    productId: string;
+    name: string;
+    totalQty: number | string;
+    totalRevenue: number | string;
+  }[];
+  dailySeries?: {
+    dateKey: string;
+    label: string;
+    totalSales: number | string;
+    txCount: number | string;
+  }[];
+}
+
+function normalizeReportPayload(raw: RawReportRpcPayload | null): ReportSummary {
+  const topProducts: TopProductItem[] = (raw?.topProducts ?? []).map((p) => ({
+    productId: p.productId,
+    name: p.name,
+    totalQty: Number(p.totalQty) || 0,
+    totalRevenue: Number(p.totalRevenue) || 0,
+  }));
+
+  const dailySeries: DailySalesPoint[] = (raw?.dailySeries ?? []).map((d) => ({
+    dateKey: d.dateKey,
+    label: d.label,
+    totalSales: Number(d.totalSales) || 0,
+    txCount: Number(d.txCount) || 0,
+  }));
+
+  return {
+    totalSales: Number(raw?.totalSales) || 0,
+    completedCount: Number(raw?.completedCount) || 0,
+    voidCount: Number(raw?.voidCount) || 0,
+    grossProfit: Number(raw?.grossProfit) || 0,
+    totalExpenses: Number(raw?.totalExpenses) || 0,
+    netProfit: Number(raw?.netProfit) || 0,
+    topProducts,
+    dailySeries,
+  };
 }
 
 export function usePeriodReportQuery({
@@ -25,34 +69,23 @@ export function usePeriodReportQuery({
   return useQuery({
     queryKey: ['reports', storeId, startIso, endIso, startDateLocal, endDateLocal],
     enabled: Boolean(storeId),
+    staleTime: 60_000,
     queryFn: async (): Promise<ReportSummary> => {
-      const [salesRes, expensesRes] = await Promise.all([
-        supabase
-          .from('sales')
-          .select('*, sale_items(*)')
-          .eq('store_id', storeId!)
-          .gte('created_at', startIso)
-          .lte('created_at', endIso)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('expenses')
-          .select('*')
-          .eq('store_id', storeId!)
-          .gte('expense_date', startDateLocal)
-          .lte('expense_date', endDateLocal),
-      ]);
+      const tzOffsetMinutes = -new Date().getTimezoneOffset();
 
-      if (salesRes.error) {
-        throw new Error(salesRes.error.message);
-      }
-      if (expensesRes.error) {
-        throw new Error(expensesRes.error.message);
+      const { data, error } = await supabase.rpc('get_period_report_summary', {
+        p_start_iso: startIso,
+        p_end_iso: endIso,
+        p_start_date: startDateLocal,
+        p_end_date: endDateLocal,
+        p_tz_offset_minutes: tzOffsetMinutes,
+      });
+
+      if (error) {
+        throw new Error(toUserFriendlyError(error, 'Gagal memuat ringkasan laporan.'));
       }
 
-      return computeReportSummary(
-        (salesRes.data ?? []) as SaleWithItems[],
-        (expensesRes.data ?? []) as ExpenseRow[],
-      );
+      return normalizeReportPayload((data as RawReportRpcPayload | null) ?? null);
     },
   });
 }

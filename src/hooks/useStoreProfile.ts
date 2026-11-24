@@ -1,4 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toUserFriendlyError } from '@/lib/errorMessage';
+import {
+  deleteStorageImageByUrl,
+  uploadCompressedStorageImage,
+} from '@/lib/imageUpload';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/useAppStore';
 import { useCartStore } from '@/store/useCartStore';
@@ -13,6 +18,7 @@ export interface UpdateStoreProfileInput {
   receiptFooter: string;
   paperSize: PaperSize;
   logoUrl?: string | null;
+  previousLogoUrl?: string | null;
 }
 
 export function useUpdateStoreProfileMutation() {
@@ -45,7 +51,15 @@ export function useUpdateStoreProfileMutation() {
         .single();
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memperbarui profil toko.'));
+      }
+
+      if (
+        input.previousLogoUrl &&
+        input.logoUrl !== undefined &&
+        input.previousLogoUrl !== input.logoUrl
+      ) {
+        void deleteStorageImageByUrl('store-logos', input.previousLogoUrl);
       }
 
       return data as StoreRow;
@@ -61,36 +75,17 @@ export function useUploadStoreLogoMutation() {
     mutationFn: async ({
       userId,
       localUri,
-      mimeType,
     }: {
       userId: string;
       localUri: string;
       mimeType?: string;
     }): Promise<string> => {
-      const ext = mimeType?.includes('png')
-        ? 'png'
-        : mimeType?.includes('webp')
-          ? 'webp'
-          : 'jpg';
-      const contentType = mimeType ?? 'image/jpeg';
-      const filePath = `${userId}/logo-${Date.now()}.${ext}`;
-
-      const response = await fetch(localUri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('store-logos')
-        .upload(filePath, arrayBuffer, {
-          contentType,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data } = supabase.storage.from('store-logos').getPublicUrl(filePath);
-      return data.publicUrl;
+      return uploadCompressedStorageImage({
+        bucket: 'store-logos',
+        userId,
+        prefix: 'logo',
+        localUri,
+      });
     },
   });
 }
@@ -108,7 +103,7 @@ export function useDeleteAccountMutation() {
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal menghapus akun.'));
       }
 
       const parsed = data as { success?: boolean; error?: string } | null;

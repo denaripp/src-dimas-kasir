@@ -1,8 +1,9 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { useIsFocused } from '@react-navigation/native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Image,
   RefreshControl,
   ScrollView,
   Text,
@@ -39,19 +40,29 @@ function getGreeting(): string {
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const { store } = useAuth();
   const storeName = store?.name ?? 'Toko Saya';
+  const [todayKey, setTodayKey] = useState(() => formatIsoDateLocal(new Date()));
+
+  useEffect(() => {
+    if (!isFocused) return;
+    const currentKey = formatIsoDateLocal(new Date());
+    if (currentKey !== todayKey) {
+      setTodayKey(currentKey);
+    }
+  }, [isFocused, todayKey]);
 
   const todayWindow = useMemo(() => {
-    const now = new Date();
-    const range = getLocalDayRangeUtc(now);
-    const localDate = formatIsoDateLocal(now);
+    const [y, m, d] = todayKey.split('-').map((n) => Number.parseInt(n, 10));
+    const anchor = new Date(y, (m || 1) - 1, d || 1);
+    const range = getLocalDayRangeUtc(anchor);
     return {
       ...range,
-      startDateLocal: localDate,
-      endDateLocal: localDate,
+      startDateLocal: todayKey,
+      endDateLocal: todayKey,
     };
-  }, []);
+  }, [todayKey]);
 
   const {
     data: todayReport,
@@ -110,8 +121,11 @@ export default function DashboardScreen() {
           >
             {store?.logo_url ? (
               <Image
-                source={{ uri: store.logo_url }}
-                className="h-10 w-10 rounded-[13px] border border-border"
+                source={store.logo_url}
+                style={{ width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: '#E4E4E7' }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={120}
               />
             ) : (
               <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-black">

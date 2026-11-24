@@ -116,22 +116,50 @@ export const useCartStore = create<CartStoreState>((set, get) => ({
   },
 
   syncProductStocks: (products) => {
-    const byId = new Map(products.map((p) => [p.id, p]));
-    set((state) => ({
-      items: state.items
-        .filter((item) => byId.has(item.productId))
-        .map((item) => {
-          const fresh = byId.get(item.productId)!;
-          return {
+    set((state) => {
+      if (state.items.length === 0) {
+        return state;
+      }
+
+      const byId = new Map(products.map((p) => [p.id, p]));
+      let changed = false;
+      const nextItems: CartItem[] = [];
+
+      for (const item of state.items) {
+        const fresh = byId.get(item.productId);
+        if (!fresh) {
+          changed = true;
+          continue;
+        }
+
+        const nextImageUrl = fresh.image_url ?? null;
+        if (
+          item.name === fresh.name &&
+          item.barcode === fresh.barcode &&
+          item.imageUrl === nextImageUrl &&
+          item.sellPrice === fresh.sell_price &&
+          item.availableStock === fresh.stock
+        ) {
+          nextItems.push(item);
+        } else {
+          changed = true;
+          nextItems.push({
             ...item,
             name: fresh.name,
             barcode: fresh.barcode,
-            imageUrl: fresh.image_url ?? null,
+            imageUrl: nextImageUrl,
             sellPrice: fresh.sell_price,
             availableStock: fresh.stock,
-          };
-        }),
-    }));
+          });
+        }
+      }
+
+      if (!changed) {
+        return state;
+      }
+
+      return { items: nextItems };
+    });
   },
 
   clearCart: () => set({ items: [] }),

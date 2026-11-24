@@ -1,4 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toUserFriendlyError } from '@/lib/errorMessage';
+import {
+  deleteStorageImageByUrl,
+  uploadCompressedStorageImage,
+} from '@/lib/imageUpload';
 import { supabase } from '@/lib/supabase';
 import type {
   CsvImportProductRow,
@@ -20,6 +25,7 @@ export function useProductsQuery(storeId: string | undefined) {
   return useQuery({
     queryKey: PRODUCT_KEYS.list(storeId),
     enabled: Boolean(storeId),
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<ProductRow[]> => {
       const { data, error } = await supabase
         .from('products')
@@ -29,7 +35,7 @@ export function useProductsQuery(storeId: string | undefined) {
         .order('name', { ascending: true });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memuat daftar barang.'));
       }
       return (data ?? []) as ProductRow[];
     },
@@ -37,9 +43,23 @@ export function useProductsQuery(storeId: string | undefined) {
 }
 
 export function useProductByIdQuery(productId: string | undefined) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: PRODUCT_KEYS.detail(productId),
     enabled: Boolean(productId && productId !== 'new'),
+    staleTime: 60_000,
+    initialData: () => {
+      if (!productId || productId === 'new') return undefined;
+      const lists = queryClient.getQueriesData<ProductRow[]>({
+        queryKey: ['products', 'list'],
+      });
+      for (const [, rows] of lists) {
+        const found = rows?.find((row) => row.id === productId);
+        if (found) return found;
+      }
+      return undefined;
+    },
     queryFn: async (): Promise<ProductRow | null> => {
       const { data, error } = await supabase
         .from('products')
@@ -48,7 +68,7 @@ export function useProductByIdQuery(productId: string | undefined) {
         .maybeSingle();
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memuat detail barang.'));
       }
       return (data as ProductRow | null) ?? null;
     },
@@ -59,6 +79,7 @@ export function useStockMovementsQuery(productId: string | undefined) {
   return useQuery({
     queryKey: PRODUCT_KEYS.movements(productId),
     enabled: Boolean(productId),
+    staleTime: 60_000,
     queryFn: async (): Promise<StockMovementRow[]> => {
       const { data, error } = await supabase
         .from('stock_movements')
@@ -68,7 +89,7 @@ export function useStockMovementsQuery(productId: string | undefined) {
         .limit(100);
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memuat riwayat stok.'));
       }
       return (data ?? []) as StockMovementRow[];
     },
@@ -82,6 +103,7 @@ export interface SaveProductInput {
   barcode: string | null;
   category: string;
   image_url?: string | null;
+  previous_image_url?: string | null;
   sell_price: number;
   cost_price: number;
   stock: number;
@@ -93,36 +115,17 @@ export function useUploadProductImageMutation() {
     mutationFn: async ({
       userId,
       localUri,
-      mimeType,
     }: {
       userId: string;
       localUri: string;
       mimeType?: string;
     }): Promise<string> => {
-      const ext = mimeType?.includes('png')
-        ? 'png'
-        : mimeType?.includes('webp')
-          ? 'webp'
-          : 'jpg';
-      const contentType = mimeType ?? 'image/jpeg';
-      const filePath = `${userId}/product-${Date.now()}.${ext}`;
-
-      const response = await fetch(localUri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, arrayBuffer, {
-          contentType,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-      return data.publicUrl;
+      return uploadCompressedStorageImage({
+        bucket: 'product-images',
+        userId,
+        prefix: 'product',
+        localUri,
+      });
     },
   });
 }
@@ -159,8 +162,17 @@ export function useSaveProductMutation() {
           if (error.code === '23505') {
             throw new Error('Kode barcode sudah digunakan oleh barang aktif lain.');
           }
-          throw new Error(error.message);
+          throw new Error(toUserFriendlyError(error, 'Gagal memperbarui barang.'));
         }
+
+        if (
+          input.previous_image_url &&
+          input.image_url !== undefined &&
+          input.previous_image_url !== input.image_url
+        ) {
+          void deleteStorageImageByUrl('product-images', input.previous_image_url);
+        }
+
         return data as ProductRow;
       }
 
@@ -186,7 +198,7 @@ export function useSaveProductMutation() {
         if (insertError.code === '23505') {
           throw new Error('Kode barcode sudah digunakan oleh barang aktif lain.');
         }
-        throw new Error(insertError.message);
+        throw new Error(toUserFriendlyError(insertError, 'Gagal menambah barang baru.'));
       }
 
       const product = created as ProductRow;
@@ -203,7 +215,7 @@ export function useSaveProductMutation() {
         );
 
         if (stockError) {
-          throw new Error(stockError.message);
+          throw new Error(toUserFriendlyError(stockError, 'Gagal mencatat stok awal.'));
         }
         return updated as ProductRow;
       }
@@ -212,7 +224,6 @@ export function useSaveProductMutation() {
     },
     onSuccess: (product) => {
       void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
-      void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(product.id) });
       void queryClient.invalidateQueries({
         queryKey: PRODUCT_KEYS.movements(product.id),
       });
@@ -224,15 +235,26 @@ export function useDeleteProductMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (productId: string): Promise<DeleteProductSmartResult> => {
+    mutationFn: async (
+      input: string | { productId: string; imageUrl?: string | null },
+    ): Promise<DeleteProductSmartResult> => {
+      const productId = typeof input === 'string' ? input : input.productId;
+      const imageUrl = typeof input === 'string' ? undefined : input.imageUrl;
+
       const { data, error } = await supabase.rpc('delete_product_smart', {
         p_product_id: productId,
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal menghapus barang.'));
       }
-      return data as DeleteProductSmartResult;
+
+      const result = data as DeleteProductSmartResult;
+      if (result.mode === 'hard_deleted' && imageUrl) {
+        void deleteStorageImageByUrl('product-images', imageUrl);
+      }
+
+      return result;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
@@ -266,14 +288,13 @@ export function useAdjustStockMutation() {
         if (error.message.includes('ALASAN_PENYESUAIAN_WAJIB')) {
           throw new Error('Alasan penyesuaian wajib diisi.');
         }
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memperbarui stok barang.'));
       }
 
       return data as ProductRow;
     },
     onSuccess: (product) => {
       void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
-      void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(product.id) });
       void queryClient.invalidateQueries({
         queryKey: PRODUCT_KEYS.movements(product.id),
       });
@@ -291,7 +312,7 @@ export function useImportProductsCsvMutation() {
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal mengimpor data CSV.'));
       }
       return data as ImportProductsCsvResult;
     },

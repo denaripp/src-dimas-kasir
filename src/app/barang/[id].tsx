@@ -1,5 +1,6 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -7,7 +8,6 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -154,6 +154,7 @@ export default function ProductFormScreen() {
         barcode: values.barcode ? values.barcode : null,
         category: values.category,
         image_url: imageUrl,
+        previous_image_url: existingProduct?.image_url ?? null,
         sell_price: parseIntOrZero(values.sell_price),
         cost_price: parseIntOrZero(values.cost_price),
         stock: parseIntOrZero(values.stock),
@@ -179,7 +180,10 @@ export default function ProductFormScreen() {
           onPress: () => {
             void (async () => {
               try {
-                const res = await deleteMutation.mutateAsync(productId);
+                const res = await deleteMutation.mutateAsync({
+                  productId,
+                  imageUrl: existingProduct?.image_url ?? null,
+                });
                 Alert.alert(
                   'Berhasil',
                   res.mode === 'soft_deleted'
@@ -262,9 +266,11 @@ export default function ProductFormScreen() {
                 <ActivityIndicator size="small" color="#D91E2A" />
               ) : imageUrl ? (
                 <Image
-                  source={{ uri: imageUrl }}
+                  source={imageUrl}
                   style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={120}
                 />
               ) : (
                 <View className="items-center gap-1">

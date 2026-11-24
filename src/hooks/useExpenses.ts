@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toUserFriendlyError } from '@/lib/errorMessage';
 import { supabase } from '@/lib/supabase';
 import type { ExpenseCategoryRow, ExpenseRow } from '@/types/database';
 
@@ -14,6 +15,7 @@ export function useExpenseCategoriesQuery(storeId: string | undefined) {
   return useQuery({
     queryKey: EXPENSE_KEYS.categories(storeId),
     enabled: Boolean(storeId),
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<ExpenseCategoryRow[]> => {
       const { data, error } = await supabase
         .from('expense_categories')
@@ -23,7 +25,7 @@ export function useExpenseCategoriesQuery(storeId: string | undefined) {
         .order('name', { ascending: true });
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memuat kategori pengeluaran.'));
       }
       return (data ?? []) as ExpenseCategoryRow[];
     },
@@ -60,7 +62,7 @@ export function useCreateExpenseCategoryMutation() {
         if (error.code === '23505') {
           throw new Error('Kategori dengan nama tersebut sudah ada.');
         }
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal menambah kategori.'));
       }
 
       return data as ExpenseCategoryRow;
@@ -92,7 +94,7 @@ export function useDeleteExpenseCategoryMutation() {
         .eq('is_default', false);
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal menghapus kategori.'));
       }
       return storeId;
     },
@@ -130,7 +132,7 @@ export function useExpensesQuery(
 
       const { data, error } = await query;
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal memuat daftar pengeluaran.'));
       }
       return (data ?? []) as ExpenseRow[];
     },
@@ -169,14 +171,13 @@ export function useCreateExpenseMutation() {
         .single();
 
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal menyimpan pengeluaran.'));
       }
       return data as ExpenseRow;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: EXPENSE_KEYS.all });
       void queryClient.invalidateQueries({ queryKey: ['reports'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -188,13 +189,12 @@ export function useDeleteExpenseMutation() {
     mutationFn: async (expenseId: string) => {
       const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
       if (error) {
-        throw new Error(error.message);
+        throw new Error(toUserFriendlyError(error, 'Gagal menghapus pengeluaran.'));
       }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: EXPENSE_KEYS.all });
       void queryClient.invalidateQueries({ queryKey: ['reports'] });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

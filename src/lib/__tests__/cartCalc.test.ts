@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { useCartStore } from '@/store/useCartStore';
+import type { ProductRow } from '@/types/database';
 import {
   calculateCartItemCount,
   calculateCartTotal,
@@ -52,5 +54,46 @@ describe('cartCalc', () => {
     );
     expect(parseSaleRpcError('UANG_TIDAK_CUKUP:5000:7000')).toContain('kurang');
     expect(parseSaleRpcError('KERANJANG_KOSONG')).toContain('kosong');
+  });
+});
+
+describe('useCartStore.syncProductStocks', () => {
+  const sampleProduct: ProductRow = {
+    id: 'p1',
+    store_id: 's1',
+    name: 'Indomie Goreng',
+    barcode: '8998866200578',
+    category: 'Makanan',
+    image_url: null,
+    sell_price: 3500,
+    cost_price: 2800,
+    stock: 10,
+    min_stock: 3,
+    is_active: true,
+    created_at: '2026-11-23T00:00:00Z',
+    updated_at: '2026-11-23T00:00:00Z',
+  };
+
+  test('menjaga referensi items tetap sama saat keranjang kosong atau tidak ada perubahan', () => {
+    useCartStore.getState().clearCart();
+    const emptyRef = useCartStore.getState().items;
+    useCartStore.getState().syncProductStocks([sampleProduct]);
+    expect(useCartStore.getState().items).toBe(emptyRef);
+
+    useCartStore.getState().addItem(sampleProduct);
+    const filledRef = useCartStore.getState().items;
+    useCartStore.getState().syncProductStocks([sampleProduct]);
+    expect(useCartStore.getState().items).toBe(filledRef);
+  });
+
+  test('memperbarui stok terbaru dan mengosongkan item yang hilang saat daftar produk kosong', () => {
+    useCartStore.getState().clearCart();
+    useCartStore.getState().addItem(sampleProduct);
+
+    useCartStore.getState().syncProductStocks([{ ...sampleProduct, stock: 7 }]);
+    expect(useCartStore.getState().items[0].availableStock).toBe(7);
+
+    useCartStore.getState().syncProductStocks([]);
+    expect(useCartStore.getState().items.length).toBe(0);
   });
 });
