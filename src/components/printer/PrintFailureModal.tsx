@@ -1,5 +1,6 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Text, View } from 'react-native';
+import { MotionPressable } from '@/components/common/MotionPressable';
 
 interface PrintFailureModalProps {
   visible: boolean;
@@ -29,33 +30,33 @@ export function PrintFailureModal({
 }: PrintFailureModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 items-center justify-center bg-black/60 px-6">
-        <View className="w-full rounded-hero border-[1.5px] border-black bg-white p-5">
-          <View className="mb-3 flex-row items-center gap-3">
-            <View className="h-11 w-11 items-center justify-center rounded-full bg-red">
-              <FontAwesome6 name="triangle-exclamation" size={18} color="#FFFFFF" solid />
+      <View className="flex-1 items-center justify-center bg-black/50 px-6">
+        <View className="w-full rounded-hero border border-border bg-white p-5">
+          <View className="mb-3.5 flex-row items-center gap-3">
+            <View className="h-11 w-11 items-center justify-center rounded-2xl bg-red-soft">
+              <FontAwesome6 name="triangle-exclamation" size={18} color="#D91E2A" solid />
             </View>
             <View className="flex-1">
               <Text className="font-extrabold text-[16px] text-black">
                 Gagal Mencetak Struk
               </Text>
-              <Text className="font-semibold text-[11.5px] text-black">
+              <Text className="mt-0.5 font-medium text-[12px] text-muted">
                 Transaksi tetap tersimpan aman.
               </Text>
             </View>
           </View>
 
           {errorMessage ? (
-            <View className="mb-4 rounded-control border-[1.5px] border-dashed border-black bg-white px-3.5 py-2.5">
-              <Text className="font-medium text-[12px] text-black">{errorMessage}</Text>
+            <View className="mb-4 rounded-control bg-surface px-3.5 py-2.5">
+              <Text className="font-medium text-[12px] leading-4 text-black">{errorMessage}</Text>
             </View>
           ) : null}
 
           <View className="gap-2.5">
-            <Pressable
+            <MotionPressable
               onPress={onRetry}
               disabled={isBusy}
-              className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-red bg-red py-3.5"
+              className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
             >
               {isBusy ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -63,37 +64,33 @@ export function PrintFailureModal({
                 <FontAwesome6 name="rotate-right" size={13} color="#FFFFFF" solid />
               )}
               <Text className="font-extrabold text-[13.5px] text-white">Coba lagi</Text>
-            </Pressable>
+            </MotionPressable>
 
-            <Pressable
+            <MotionPressable
               onPress={onChoosePrinter}
               disabled={isBusy}
-              className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3.5"
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
             >
               <FontAwesome6 name="print" size={13} color="#09090B" solid />
-              <Text className="font-extrabold text-[13.5px] text-black">
-                Pilih printer lain
-              </Text>
-            </Pressable>
+              <Text className="font-bold text-[13px] text-black">Pilih printer lain</Text>
+            </MotionPressable>
 
-            <Pressable
+            <MotionPressable
               onPress={onSharePdf}
               disabled={isBusy}
-              className="flex-row items-center justify-center gap-2 rounded-control border-[1.5px] border-black bg-white py-3.5"
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
             >
               <FontAwesome6 name="file-pdf" size={13} color="#D91E2A" solid />
-              <Text className="font-extrabold text-[13.5px] text-black">
-                Bagikan sebagai PDF
-              </Text>
-            </Pressable>
+              <Text className="font-bold text-[13px] text-black">Bagikan sebagai PDF</Text>
+            </MotionPressable>
 
-            <Pressable
+            <MotionPressable
               onPress={onClose}
               disabled={isBusy}
-              className="items-center py-2"
+              className="items-center py-2.5"
             >
-              <Text className="font-bold text-[12.5px] text-black">Tutup</Text>
-            </Pressable>
+              <Text className="font-bold text-[12.5px] text-muted">Tutup</Text>
+            </MotionPressable>
           </View>
         </View>
       </View>

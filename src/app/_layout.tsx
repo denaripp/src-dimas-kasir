@@ -36,7 +36,11 @@ function RootNavigator() {
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
-      router.replace('/(tabs)');
+      // Beri jeda singkat 260ms agar animasi keluar logo Login terlihat mulus sebelum fade ke Beranda
+      const timer = setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 260);
+      return () => clearTimeout(timer);
     }
   }, [session, isLoading, segments, router]);
 
@@ -49,9 +53,22 @@ function RootNavigator() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#FFFFFF' },
+        animation: 'fade_from_bottom',
+        animationDuration: 260,
+      }}
+    >
+      <Stack.Screen
+        name="(auth)"
+        options={{ animation: 'fade', animationDuration: 320 }}
+      />
+      <Stack.Screen
+        name="(tabs)"
+        options={{ animation: 'fade', animationDuration: 320 }}
+      />
       <Stack.Screen name="barang/[id]" />
       <Stack.Screen name="barang/csv" />
       <Stack.Screen name="stok/[productId]" />

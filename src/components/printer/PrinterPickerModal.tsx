@@ -3,12 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotionPressable } from '@/components/common/MotionPressable';
 import {
   scanBluetoothPrinters,
   type BluetoothPrinterDevice,
@@ -75,42 +75,42 @@ export function PrinterPickerModal({
       <SafeAreaView className="flex-1 bg-white">
         {/* Header */}
         <View className="flex-row items-center justify-between px-[18px] py-3">
-          <Pressable
+          <MotionPressable
             onPress={onClose}
             accessibilityLabel="Tutup pilih printer"
-            className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-black bg-white"
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface"
           >
             <FontAwesome6 name="xmark" size={15} color="#09090B" solid />
-          </Pressable>
+          </MotionPressable>
           <Text className="font-extrabold text-[16px] text-black">
             Pilih Printer Bluetooth
           </Text>
-          <Pressable
+          <MotionPressable
             onPress={() => void handleScan()}
             disabled={isScanning}
             accessibilityLabel="Pindai ulang printer"
-            className="h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-red bg-red"
+            className="h-10 w-10 items-center justify-center rounded-full bg-red"
           >
             <FontAwesome6 name="rotate-right" size={14} color="#FFFFFF" solid />
-          </Pressable>
+          </MotionPressable>
         </View>
 
         <ScrollView
           className="flex-1 px-[18px]"
           contentContainerStyle={{ paddingBottom: 32 }}
         >
-          <View className="mb-3.5 rounded-card border-[1.5px] border-black bg-white p-3.5">
-            <Text className="font-bold text-[12px] text-black">
+          <View className="mb-3.5 rounded-card bg-surface p-3.5">
+            <Text className="font-medium text-[12px] leading-4 text-muted">
               Pastikan printer thermal (58mm/80mm) sudah menyala dan dipasangkan (paired) di pengaturan Bluetooth Android.
             </Text>
           </View>
 
           {scanError ? (
-            <View className="mb-3.5 rounded-card bg-red p-4">
-              <Text className="font-extrabold text-[13.5px] text-white">
+            <View className="mb-3.5 rounded-card bg-red-soft p-4">
+              <Text className="font-extrabold text-[13.5px] text-red">
                 Gagal Memindai Printer
               </Text>
-              <Text className="mt-1 font-medium text-[12px] text-white">
+              <Text className="mt-1 font-medium text-[12px] text-red">
                 {scanError}
               </Text>
             </View>
@@ -119,57 +119,61 @@ export function PrinterPickerModal({
           {isScanning ? (
             <View className="items-center py-10">
               <ActivityIndicator size="large" color="#D91E2A" />
-              <Text className="mt-3 font-semibold text-[12.5px] text-black">
+              <Text className="mt-3 font-semibold text-[12.5px] text-muted">
                 Mencari printer Bluetooth...
               </Text>
             </View>
           ) : devices.length === 0 ? (
-            <View className="items-center rounded-card border-[1.5px] border-black bg-white p-6">
-              <View className="mb-3 h-12 w-12 items-center justify-center rounded-full bg-red">
-                <FontAwesome6 name="print" size={18} color="#FFFFFF" solid />
+            <View className="items-center rounded-card border border-border bg-white p-6">
+              <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-red-soft">
+                <FontAwesome6 name="print" size={18} color="#D91E2A" solid />
               </View>
               <Text className="font-extrabold text-[14.5px] text-black">
                 Belum Ada Printer Terdeteksi
               </Text>
-              <Text className="mt-1 text-center font-medium text-[12px] text-black">
+              <Text className="mt-1 text-center font-medium text-[12px] leading-4 text-muted">
                 Nyalakan Bluetooth, pasangkan printer di pengaturan Android, lalu tekan tombol pindai ulang.
               </Text>
             </View>
           ) : (
-            <View className="gap-2.5">
-              {devices.map((device) => {
+            <View className="overflow-hidden rounded-card border border-border bg-white">
+              {devices.map((device, idx) => {
                 const isSelected = selectedPrinter?.macAddress === device.macAddress;
+                const isLast = idx === devices.length - 1;
                 return (
-                  <Pressable
+                  <MotionPressable
                     key={device.macAddress}
                     onPress={() => void handlePick(device)}
-                    className={`flex-row items-center justify-between rounded-card border-[1.5px] px-4 py-3.5 ${
-                      isSelected ? 'border-red bg-red' : 'border-black bg-white'
-                    }`}
+                    scaleTo={0.985}
+                    className={`flex-row items-center justify-between px-4 py-3.5 ${
+                      !isLast ? 'border-b border-border' : ''
+                    } ${isSelected ? 'bg-red-soft' : 'bg-white'}`}
                   >
                     <View className="flex-1 pr-2">
                       <Text
-                        className={`font-extrabold text-[14px] ${
-                          isSelected ? 'text-white' : 'text-black'
+                        className={`font-bold text-[14px] ${
+                          isSelected ? 'text-red' : 'text-black'
                         }`}
                       >
                         {device.deviceName}
                       </Text>
-                      <Text
-                        className={`mt-0.5 font-medium text-[12px] ${
-                          isSelected ? 'text-white' : 'text-black'
-                        }`}
-                      >
+                      <Text className="mt-0.5 font-medium text-[12px] text-muted">
                         {device.macAddress}
                       </Text>
                     </View>
-                    <FontAwesome6
-                      name={isSelected ? 'check' : 'print'}
-                      size={15}
-                      color={isSelected ? '#FFFFFF' : '#09090B'}
-                      solid
-                    />
-                  </Pressable>
+                    <View
+                      className={`h-8 w-8 items-center justify-center rounded-full ${
+                        isSelected ? 'bg-red' : 'bg-surface'
+                      }`}
+                    >
+                      <FontAwesome6
+                        name={isSelected ? 'check' : 'print'}
+                        size={13}
+                        color={isSelected ? '#FFFFFF' : '#09090B'}
+                        solid
+                      />
+                    </View>
+                  </MotionPressable>
                 );
               })}
             </View>
