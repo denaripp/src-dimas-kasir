@@ -127,6 +127,7 @@ describe('computeReportSummary', () => {
         name: 'Indomie Goreng',
         barcode: null,
         category: 'Makanan',
+        image_url: null,
         sell_price: 3500,
         cost_price: 2800,
         stock: 2,

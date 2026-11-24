@@ -88,6 +88,7 @@ describe('generateProductsCsv & template', () => {
         name: 'Air Mineral 600ml',
         barcode: '8886008101053',
         category: 'Minuman',
+        image_url: null,
         sell_price: 4000,
         cost_price: 2500,
         stock: 12,

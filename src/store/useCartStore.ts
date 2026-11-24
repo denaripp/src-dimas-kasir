@@ -4,6 +4,7 @@ import type { ProductRow } from '@/types/database';
 
 export interface CartItem extends CartCalcItem {
   barcode: string | null;
+  imageUrl: string | null;
 }
 
 interface CartActionResult {
@@ -50,6 +51,7 @@ export const useCartStore = create<CartStoreState>((set, get) => ({
               ? {
                   ...item,
                   name: product.name,
+                  imageUrl: product.image_url ?? null,
                   sellPrice: product.sell_price,
                   availableStock: product.stock,
                   qty: item.qty + 1,
@@ -66,6 +68,7 @@ export const useCartStore = create<CartStoreState>((set, get) => ({
             productId: product.id,
             name: product.name,
             barcode: product.barcode,
+            imageUrl: product.image_url ?? null,
             sellPrice: product.sell_price,
             availableStock: product.stock,
             qty: 1,
@@ -123,6 +126,7 @@ export const useCartStore = create<CartStoreState>((set, get) => ({
             ...item,
             name: fresh.name,
             barcode: fresh.barcode,
+            imageUrl: fresh.image_url ?? null,
             sellPrice: fresh.sell_price,
             availableStock: fresh.stock,
           };

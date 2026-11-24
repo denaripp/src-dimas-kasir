@@ -88,14 +88,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 4. Hapus seluruh file logo milik user di bucket store-logos
-    const { data: files } = await adminClient.storage
-      .from('store-logos')
-      .list(user.id, { limit: 100 });
+    // 4. Hapus seluruh file logo & gambar produk milik user di Supabase Storage
+    for (const bucket of ['store-logos', 'product-images'] as const) {
+      const { data: files } = await adminClient.storage
+        .from(bucket)
+        .list(user.id, { limit: 1000 });
 
-    if (files && files.length > 0) {
-      const paths = files.map((file) => `${user.id}/${file.name}`);
-      await adminClient.storage.from('store-logos').remove(paths);
+      if (files && files.length > 0) {
+        const paths = files.map((file) => `${user.id}/${file.name}`);
+        await adminClient.storage.from(bucket).remove(paths);
+      }
     }
 
     // 5. Hapus sales terlebih dahulu agar cascade sale_items selesai sebelum products dihapus

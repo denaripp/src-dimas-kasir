@@ -81,10 +81,50 @@ export interface SaveProductInput {
   name: string;
   barcode: string | null;
   category: string;
+  image_url?: string | null;
   sell_price: number;
   cost_price: number;
   stock: number;
   min_stock: number;
+}
+
+export function useUploadProductImageMutation() {
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      localUri,
+      mimeType,
+    }: {
+      userId: string;
+      localUri: string;
+      mimeType?: string;
+    }): Promise<string> => {
+      const ext = mimeType?.includes('png')
+        ? 'png'
+        : mimeType?.includes('webp')
+          ? 'webp'
+          : 'jpg';
+      const contentType = mimeType ?? 'image/jpeg';
+      const filePath = `${userId}/product-${Date.now()}.${ext}`;
+
+      const response = await fetch(localUri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, arrayBuffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      return data.publicUrl;
+    },
+  });
 }
 
 export function useSaveProductMutation() {
@@ -95,16 +135,22 @@ export function useSaveProductMutation() {
       const cleanBarcode = input.barcode?.trim() ? input.barcode.trim() : null;
 
       if (input.id) {
+        const updatePayload: Record<string, unknown> = {
+          name: input.name.trim(),
+          barcode: cleanBarcode,
+          category: input.category.trim(),
+          sell_price: input.sell_price,
+          cost_price: input.cost_price,
+          min_stock: input.min_stock,
+        };
+
+        if (input.image_url !== undefined) {
+          updatePayload.image_url = input.image_url;
+        }
+
         const { data, error } = await supabase
           .from('products')
-          .update({
-            name: input.name.trim(),
-            barcode: cleanBarcode,
-            category: input.category.trim(),
-            sell_price: input.sell_price,
-            cost_price: input.cost_price,
-            min_stock: input.min_stock,
-          })
+          .update(updatePayload)
           .eq('id', input.id)
           .select('*')
           .single();
@@ -126,6 +172,7 @@ export function useSaveProductMutation() {
           name: input.name.trim(),
           barcode: cleanBarcode,
           category: input.category.trim(),
+          image_url: input.image_url ?? null,
           sell_price: input.sell_price,
           cost_price: input.cost_price,
           stock: 0,

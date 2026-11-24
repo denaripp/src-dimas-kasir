@@ -21,6 +21,7 @@ export interface ProductRow {
   name: string;
   barcode: string | null;
   category: string;
+  image_url: string | null;
   sell_price: number;
   cost_price: number;
   stock: number;
