@@ -1,14 +1,14 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import { normalizeBarcode } from '@/lib/barcode';
 import {
   CameraView,
   useCameraPermissions,
   type BarcodeScanningResult,
   type BarcodeSettings,
 } from 'expo-camera';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarcodeScanConsensus } from '@/lib/barcode';
 
 interface CameraBarcodeModalProps {
   visible: boolean;
@@ -17,8 +17,6 @@ interface CameraBarcodeModalProps {
   onScan: (barcode: string) => void;
   onClose: () => void;
 }
-
-const SCAN_DEBOUNCE_MS = 1200;
 
 const BARCODE_SCANNER_SETTINGS: BarcodeSettings = {
   barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
@@ -38,30 +36,43 @@ export function CameraBarcodeModal({
   onClose,
 }: CameraBarcodeModalProps) {
   const [permission, requestPermission] = useCameraPermissions();
-  const lastScanRef = useRef<{ code: string; at: number }>({ code: '', at: 0 });
+  const [torchOn, setTorchOn] = useState(false);
+  const [scanLocked, setScanLocked] = useState(false);
+  const consensusRef = useRef<BarcodeScanConsensus>(new BarcodeScanConsensus());
+  const lockedRef = useRef(false);
 
   useEffect(() => {
-    if (visible && permission && !permission.granted && permission.canAskAgain) {
-      void requestPermission();
+    if (visible) {
+      consensusRef.current.reset();
+      lockedRef.current = false;
+      setScanLocked(false);
+      setTorchOn(false);
+
+      if (permission && !permission.granted && permission.canAskAgain) {
+        void requestPermission();
+      }
+    } else {
+      consensusRef.current.reset();
+      lockedRef.current = false;
+      setTorchOn(false);
     }
   }, [visible, permission, requestPermission]);
 
   const handleBarcodeScanned = useCallback(
     (result: BarcodeScanningResult) => {
-      const code = normalizeBarcode(result.data);
-      if (!code) return;
+      if (lockedRef.current) return;
 
-      const now = Date.now();
-      if (
-        lastScanRef.current.code === code &&
-        now - lastScanRef.current.at < SCAN_DEBOUNCE_MS
-      ) {
-        return;
+      const verifiedCode = consensusRef.current.feed(result.data, result.type);
+      if (!verifiedCode) return;
+
+      if (closeOnScan) {
+        // Hard-lock sinkron agar thread kamera native tidak mengirim frame susulan saat modal menutup
+        lockedRef.current = true;
+        setScanLocked(true);
       }
 
-      lastScanRef.current = { code, at: now };
       Vibration.vibrate(40);
-      onScan(code);
+      onScan(verifiedCode);
       if (closeOnScan) {
         onClose();
       }
@@ -82,7 +93,20 @@ export function CameraBarcodeModal({
             <FontAwesome6 name="xmark" size={16} color="#09090B" solid />
           </Pressable>
           <Text className="font-extrabold text-[16px] text-black">{title}</Text>
-          <View className="h-10 w-10" />
+          <Pressable
+            onPress={() => setTorchOn((prev) => !prev)}
+            accessibilityLabel={torchOn ? 'Matikan senter' : 'Nyalakan senter'}
+            className={`h-10 w-10 items-center justify-center rounded-full border-[1.5px] ${
+              torchOn ? 'border-red bg-red' : 'border-border bg-surface'
+            }`}
+          >
+            <FontAwesome6
+              name="bolt"
+              size={15}
+              color={torchOn ? '#FFFFFF' : '#09090B'}
+              solid
+            />
+          </Pressable>
         </View>
 
         {!permission?.granted ? (
@@ -108,8 +132,10 @@ export function CameraBarcodeModal({
             <CameraView
               style={styles.camera}
               facing="back"
+              autofocus="on"
+              enableTorch={torchOn}
               barcodeScannerSettings={BARCODE_SCANNER_SETTINGS}
-              onBarcodeScanned={handleBarcodeScanned}
+              onBarcodeScanned={scanLocked ? undefined : handleBarcodeScanned}
             />
 
             {/* Viewfinder Overlay */}
@@ -118,9 +144,9 @@ export function CameraBarcodeModal({
               className="absolute inset-0 items-center justify-center px-8"
             >
               <View className="h-44 w-full rounded-card border-[2.5px] border-red bg-transparent" />
-              <View className="mt-4 rounded-chip bg-black px-4 py-2">
+              <View className="mt-4 rounded-chip bg-black/85 px-4 py-2">
                 <Text className="font-semibold text-[12px] text-white">
-                  Arahkan barcode ke dalam kotak merah
+                  Tahan barcode stabil di dalam kotak merah
                 </Text>
               </View>
             </View>

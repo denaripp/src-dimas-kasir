@@ -141,7 +141,16 @@ export default function KasirScreen() {
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
   const [zeroStockProduct, setZeroStockProduct] = useState<ProductRow | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [scanSuccessBanner, setScanSuccessBanner] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<CreateSaleAtomicResult | null>(null);
+
+  useEffect(() => {
+    if (!scanSuccessBanner) return;
+    const timer = setTimeout(() => {
+      setScanSuccessBanner(null);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [scanSuccessBanner]);
 
   useEffect(() => {
     if (isFocused) {
@@ -173,13 +182,15 @@ export default function KasirScreen() {
   );
 
   const handleAddProduct = useCallback(
-    (product: ProductRow) => {
+    (product: ProductRow): boolean => {
       setBannerError(null);
       const res = addItem(product);
       if (!res.ok) {
         setBannerError(res.error ?? 'Stok barang tidak cukup.');
         Vibration.vibrate(80);
+        return false;
       }
+      return true;
     },
     [addItem],
   );
@@ -205,6 +216,7 @@ export default function KasirScreen() {
       if (!found) {
         Vibration.vibrate([0, 60, 60, 60]);
         setCameraOpen(false);
+        setScanSuccessBanner(null);
         setNotFoundBarcode(cleaned);
         return;
       }
@@ -212,11 +224,15 @@ export default function KasirScreen() {
       if (found.stock <= 0) {
         Vibration.vibrate(80);
         setCameraOpen(false);
+        setScanSuccessBanner(null);
         setZeroStockProduct(found);
         return;
       }
 
-      handleAddProduct(found);
+      const added = handleAddProduct(found);
+      if (added) {
+        setScanSuccessBanner(`${found.name} ditambahkan ke keranjang`);
+      }
       setSearch('');
     },
     [products, handleAddProduct],
@@ -362,6 +378,21 @@ export default function KasirScreen() {
           </View>
         ) : null}
 
+        {/* Scan Success Banner */}
+        {scanSuccessBanner ? (
+          <View className="mb-3 flex-row items-center justify-between gap-2 rounded-control border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+            <View className="flex-1 flex-row items-center gap-2">
+              <FontAwesome6 name="circle-check" size={13} color="#059669" solid />
+              <Text className="flex-1 font-bold text-[12px] text-emerald-900" numberOfLines={1}>
+                {scanSuccessBanner}
+              </Text>
+            </View>
+            <Pressable onPress={() => setScanSuccessBanner(null)} hitSlop={8}>
+              <FontAwesome6 name="xmark" size={13} color="#059669" solid />
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* Soft Search Input */}
         <View className="mb-3 flex-row items-center gap-2.5 rounded-control bg-surface px-3.5 py-2.5">
           <FontAwesome6 name="magnifying-glass" size={13} color="#71717A" solid />
@@ -476,7 +507,7 @@ export default function KasirScreen() {
         <CameraBarcodeModal
           visible={cameraOpen}
           title="Scan Barcode Kasir"
-          closeOnScan={false}
+          closeOnScan
           onScan={handleBarcodeDetected}
           onClose={() => setCameraOpen(false)}
         />
