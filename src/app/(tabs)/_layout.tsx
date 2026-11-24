@@ -1,11 +1,20 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { BottomTabBar } from '@/components/navigation/BottomTabBar';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesRealtime } from '@/hooks/useSales';
 
 export default function TabsLayout() {
-  const { store } = useAuth();
-  useSalesRealtime(store?.id);
+  const { session, isLoading, store } = useAuth();
+  useSalesRealtime(session ? store?.id : undefined);
+
+  if (isLoading) {
+    return <View className="flex-1 bg-white" />;
+  }
+
+  if (!session) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs

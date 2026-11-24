@@ -63,7 +63,7 @@ function RootNavigator() {
     >
       <Stack.Screen
         name="(auth)"
-        options={{ animation: 'fade', animationDuration: 320 }}
+        options={{ animation: 'none' }}
       />
       <Stack.Screen
         name="(tabs)"
