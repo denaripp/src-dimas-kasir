@@ -5,15 +5,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'src dimas kasir',
   slug: 'src-dimas-kasir',
   owner: 'denaripp',
-  version: '0.1.0',
+  version: '0.2.0',
+  icon: './assets/icon.png',
   orientation: 'portrait',
   scheme: 'srcdimaskasir',
   userInterfaceStyle: 'light',
   platforms: ['android'],
   android: {
     package: 'com.srcdimas.kasir',
+    versionCode: 2,
     adaptiveIcon: {
-      backgroundColor: '#D91E2A',
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#E62129',
     },
     permissions: [
       'android.permission.CAMERA',

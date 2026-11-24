@@ -6,8 +6,12 @@ module.exports = {
     colors: {
       transparent: 'transparent',
       red: '#D91E2A',
+      'red-soft': '#FEF2F2',
       white: '#FFFFFF',
+      surface: '#F7F7F8',
+      border: '#E4E4E7',
       black: '#09090B',
+      muted: '#71717A',
     },
     extend: {
       fontFamily: {
@@ -18,11 +22,12 @@ module.exports = {
         extrabold: ['PlusJakartaSans_800ExtraBold'],
       },
       borderRadius: {
-        hero: '26px',
-        calendar: '24px',
-        card: '22px',
-        control: '16px',
-        chip: '12px',
+        hero: '24px',
+        calendar: '22px',
+        card: '20px',
+        control: '14px',
+        chip: '10px',
+        thumb: '12px',
       },
     },
   },
