@@ -1,26 +1,71 @@
 // Supabase Edge Function: delete-account
-// Menghapus permanen seluruh data toko (storage logo, sales, sale_items, products,
-// stock_movements, expenses, expense_categories, stores) dan akun auth.users.
+// Menghapus permanen seluruh data toko secara atomik (sales, sale_items, products,
+// stock_movements, expenses, expense_categories, stores), akun auth.users,
+// dan seluruh objek storage milik user dengan paginasi penuh.
 // Wajib konfirmasi nama toko persis sesuai PRD 3.11.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const baseHeaders = {
+  'Content-Type': 'application/json',
+  'X-Content-Type-Options': 'nosniff',
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: baseHeaders,
   });
+}
+
+async function purgeUserBucket(
+  adminClient: SupabaseClient,
+  bucket: 'store-logos' | 'product-images',
+  userId: string,
+): Promise<boolean> {
+  const PAGE_SIZE = 100;
+  let allDeleted = true;
+
+  for (let page = 0; page < 50; page += 1) {
+    const { data: files, error: listError } = await adminClient.storage
+      .from(bucket)
+      .list(userId, { limit: PAGE_SIZE, offset: 0 });
+
+    if (listError) {
+      console.error(`[delete-account] gagal list bucket ${bucket}:`, listError.message);
+      return false;
+    }
+
+    if (!files || files.length === 0) {
+      break;
+    }
+
+    const paths = files
+      .filter((file) => Boolean(file?.name))
+      .map((file) => `${userId}/${file.name}`);
+
+    if (paths.length === 0) {
+      break;
+    }
+
+    const { error: removeError } = await adminClient.storage.from(bucket).remove(paths);
+    if (removeError) {
+      console.error(`[delete-account] gagal remove bucket ${bucket}:`, removeError.message);
+      allDeleted = false;
+      break;
+    }
+
+    if (files.length < PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return allDeleted;
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { status: 204 });
   }
 
   if (req.method !== 'POST') {
@@ -38,19 +83,21 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      console.error('[delete-account] env server tidak lengkap');
       return jsonResponse({ error: 'Konfigurasi server belum lengkap.' }, 500);
     }
 
-    const body = (await req.json().catch(() => null)) as {
-      confirmStoreName?: string;
-    } | null;
+    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body || typeof body.confirmStoreName !== 'string') {
+      return jsonResponse({ error: 'Konfirmasi nama toko wajib diisi.' }, 400);
+    }
 
-    const confirmStoreName = body?.confirmStoreName?.trim() ?? '';
+    const confirmStoreName = body.confirmStoreName.trim();
     if (!confirmStoreName) {
       return jsonResponse({ error: 'Konfirmasi nama toko wajib diisi.' }, 400);
     }
 
-    // 1. Verifikasi JWT pengguna
+    // 1. Verifikasi JWT pengguna server-side
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false, autoRefreshToken: false },
@@ -88,47 +135,40 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 4. Hapus seluruh file logo & gambar produk milik user di Supabase Storage
-    for (const bucket of ['store-logos', 'product-images'] as const) {
-      const { data: files } = await adminClient.storage
-        .from(bucket)
-        .list(user.id, { limit: 1000 });
+    // 4. Hapus seluruh data relasional toko secara ATOMIK (1 transaksi PostgreSQL)
+    //    Jika gagal, seluruh transaksi rollback — akun & storage tetap utuh.
+    const { error: deleteDbError } = await adminClient.rpc('delete_store_data_atomic', {
+      p_owner_id: user.id,
+    });
 
-      if (files && files.length > 0) {
-        const paths = files.map((file) => `${user.id}/${file.name}`);
-        await adminClient.storage.from(bucket).remove(paths);
-      }
+    if (deleteDbError) {
+      console.error('[delete-account] delete_store_data_atomic error:', deleteDbError.message);
+      return jsonResponse(
+        { error: 'Gagal menghapus data toko. Silakan coba lagi beberapa saat.' },
+        500,
+      );
     }
 
-    // 5. Hapus sales terlebih dahulu agar cascade sale_items selesai sebelum products dihapus
-    const { error: deleteSalesError } = await adminClient
-      .from('sales')
-      .delete()
-      .eq('store_id', store.id);
-
-    if (deleteSalesError) {
-      return jsonResponse({ error: `Gagal menghapus transaksi: ${deleteSalesError.message}` }, 500);
+    // 5. Hapus seluruh file logo & foto produk user di Storage (dengan paginasi)
+    const logosCleaned = await purgeUserBucket(adminClient, 'store-logos', user.id);
+    const imagesCleaned = await purgeUserBucket(adminClient, 'product-images', user.id);
+    if (!logosCleaned || !imagesCleaned) {
+      console.error('[delete-account] sebagian file storage tidak terhapus untuk user:', user.id);
     }
 
-    // 6. Hapus store (cascade products, stock_movements, expenses, expense_categories)
-    const { error: deleteStoreError } = await adminClient
-      .from('stores')
-      .delete()
-      .eq('id', store.id);
-
-    if (deleteStoreError) {
-      return jsonResponse({ error: `Gagal menghapus data toko: ${deleteStoreError.message}` }, 500);
-    }
-
-    // 7. Hapus akun auth.users secara permanen
+    // 6. Hapus akun auth.users secara permanen
     const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteAuthError) {
-      return jsonResponse({ error: `Gagal menghapus akun auth: ${deleteAuthError.message}` }, 500);
+      console.error('[delete-account] deleteUser error:', deleteAuthError.message);
+      return jsonResponse(
+        { error: 'Gagal menyelesaikan penghapusan akun. Silakan hubungi dukungan.' },
+        500,
+      );
     }
 
     return jsonResponse({ success: true }, 200);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.';
-    return jsonResponse({ error: message }, 500);
+    console.error('[delete-account] unexpected error:', err);
+    return jsonResponse({ error: 'Terjadi kesalahan pada server.' }, 500);
   }
 });
