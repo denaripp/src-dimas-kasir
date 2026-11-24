@@ -29,6 +29,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { useReceiptPrinter } from '@/hooks/useReceiptPrinter';
 import { useCreateSaleMutation } from '@/hooks/useSales';
+import { matchBarcode, normalizeBarcode } from '@/lib/barcode';
 import { calculateCartItemCount, calculateCartTotal } from '@/lib/cartCalc';
 import { formatRupiah } from '@/lib/format';
 import { EASE_SMOOTH, MOTION_DURATION } from '@/lib/motion';
@@ -119,6 +120,7 @@ export default function KasirScreen() {
     data: products = [],
     isLoading: isLoadingProducts,
     isSuccess: isProductsLoaded,
+    refetch,
   } = useProductsQuery(store?.id);
   const createSaleMutation = useCreateSaleMutation();
   const printer = useReceiptPrinter({ successTitle: 'Struk Dicetak' });
@@ -137,8 +139,15 @@ export default function KasirScreen() {
   const [isTypingInput, setIsTypingInput] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
+  const [zeroStockProduct, setZeroStockProduct] = useState<ProductRow | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<CreateSaleAtomicResult | null>(null);
+
+  useEffect(() => {
+    if (isFocused) {
+      void refetch();
+    }
+  }, [isFocused, refetch]);
 
   useEffect(() => {
     if (isProductsLoaded) {
@@ -188,17 +197,22 @@ export default function KasirScreen() {
 
   const handleBarcodeDetected = useCallback(
     (barcode: string) => {
-      const cleaned = barcode.trim();
+      const cleaned = normalizeBarcode(barcode);
       if (!cleaned) return;
 
-      const found = products.find(
-        (p) => (p.barcode ?? '').trim().toLowerCase() === cleaned.toLowerCase(),
-      );
+      const found = products.find((p) => matchBarcode(p.barcode, cleaned));
 
       if (!found) {
         Vibration.vibrate([0, 60, 60, 60]);
         setCameraOpen(false);
         setNotFoundBarcode(cleaned);
+        return;
+      }
+
+      if (found.stock <= 0) {
+        Vibration.vibrate(80);
+        setCameraOpen(false);
+        setZeroStockProduct(found);
         return;
       }
 
@@ -262,6 +276,7 @@ export default function KasirScreen() {
     !checkoutSheetOpen &&
     !cameraOpen &&
     !notFoundBarcode &&
+    !zeroStockProduct &&
     !lastSale &&
     !printer.printerPickerOpen &&
     !printer.printError;
@@ -465,6 +480,51 @@ export default function KasirScreen() {
           onScan={handleBarcodeDetected}
           onClose={() => setCameraOpen(false)}
         />
+      ) : null}
+
+      {zeroStockProduct ? (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setZeroStockProduct(null)}
+        >
+          <View className="flex-1 items-center justify-center bg-black/50 px-6">
+            <View className="w-full rounded-hero border border-border bg-white p-5">
+              <View className="mb-3.5 h-12 w-12 items-center justify-center rounded-2xl bg-red-soft">
+                <FontAwesome6 name="boxes-stacked" size={18} color="#D91E2A" solid />
+              </View>
+              <Text className="font-extrabold text-[17px] text-black">
+                Stok Barang Habis
+              </Text>
+              <Text className="mt-1.5 font-medium text-[13px] leading-5 text-muted">
+                Barang <Text className="font-extrabold text-black">{zeroStockProduct.name}</Text> ditemukan, tetapi stoknya saat ini <Text className="font-extrabold text-red">0</Text>. Tambah stok terlebih dahulu agar dapat dijual di kasir.
+              </Text>
+
+              <View className="mt-5 gap-2.5">
+                <MotionPressable
+                  onPress={() => {
+                    const id = zeroStockProduct.id;
+                    setZeroStockProduct(null);
+                    router.push(`/stok/${id}`);
+                  }}
+                  className="min-h-[46px] items-center justify-center rounded-control bg-red py-3"
+                >
+                  <Text className="font-extrabold text-[13.5px] text-white">
+                    Tambah Stok Sekarang
+                  </Text>
+                </MotionPressable>
+
+                <MotionPressable
+                  onPress={() => setZeroStockProduct(null)}
+                  className="min-h-[44px] items-center justify-center rounded-control border border-border bg-white py-3"
+                >
+                  <Text className="font-bold text-[13px] text-black">Tutup</Text>
+                </MotionPressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       ) : null}
 
       {notFoundBarcode ? (

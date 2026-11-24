@@ -1,6 +1,7 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { memo, useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotionPressable } from '@/components/common/MotionPressable';
 import { ProductThumbnail } from '@/components/common/ProductThumbnail';
+import { CameraBarcodeModal } from '@/components/scanner/CameraBarcodeModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { formatRupiah } from '@/lib/format';
@@ -119,6 +121,7 @@ const keyExtractor = (item: ProductRow) => item.id;
 
 export default function BarangScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const { store } = useAuth();
   const {
     data: products = [],
@@ -130,6 +133,13 @@ export default function BarangScreen() {
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [cameraOpen, setCameraOpen] = useState(false);
+
+  useEffect(() => {
+    if (isFocused) {
+      void refetch();
+    }
+  }, [isFocused, refetch]);
 
   const lowStockCount = useMemo(() => countLowStockProducts(products), [products]);
   const categories = useMemo(() => extractProductCategories(products), [products]);
@@ -228,26 +238,36 @@ export default function BarangScreen() {
           </View>
         </View>
 
-        {/* Soft Search Input */}
-        <View className="mb-3 flex-row items-center gap-2.5 rounded-control bg-surface px-3.5 py-2.5">
-          <FontAwesome6 name="magnifying-glass" size={13} color="#71717A" solid />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Cari nama barang atau barcode..."
-            placeholderTextColor="#71717A"
-            className="flex-1 font-semibold text-[13px] text-black"
-            returnKeyType="search"
-          />
-          {search.length > 0 ? (
-            <Pressable
-              onPress={() => setSearch('')}
-              accessibilityLabel="Hapus pencarian"
-              hitSlop={8}
-            >
-              <FontAwesome6 name="xmark" size={14} color="#71717A" solid />
-            </Pressable>
-          ) : null}
+        {/* Soft Search Input + Camera Scanner */}
+        <View className="mb-3 flex-row items-center gap-2">
+          <View className="flex-1 flex-row items-center gap-2.5 rounded-control bg-surface px-3.5 py-2.5">
+            <FontAwesome6 name="magnifying-glass" size={13} color="#71717A" solid />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Cari nama barang atau barcode..."
+              placeholderTextColor="#71717A"
+              className="flex-1 font-semibold text-[13px] text-black"
+              returnKeyType="search"
+            />
+            {search.length > 0 ? (
+              <Pressable
+                onPress={() => setSearch('')}
+                accessibilityLabel="Hapus pencarian"
+                hitSlop={8}
+              >
+                <FontAwesome6 name="xmark" size={14} color="#71717A" solid />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <MotionPressable
+            onPress={() => setCameraOpen(true)}
+            accessibilityLabel="Pindai barcode barang dengan kamera"
+            className="h-[44px] w-[44px] items-center justify-center rounded-control bg-surface"
+          >
+            <FontAwesome6 name="camera" size={15} color="#09090B" solid />
+          </MotionPressable>
         </View>
 
         {/* Filter Chips */}
@@ -342,6 +362,14 @@ export default function BarangScreen() {
           />
         )}
       </View>
+
+      <CameraBarcodeModal
+        visible={cameraOpen}
+        title="Pindai Barcode / QR"
+        closeOnScan
+        onScan={(code) => setSearch(code)}
+        onClose={() => setCameraOpen(false)}
+      />
     </SafeAreaView>
   );
 }

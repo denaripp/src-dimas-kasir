@@ -372,6 +372,11 @@ export default function ProductFormScreen() {
                 <FontAwesome6 name="camera" size={16} color="#FFFFFF" solid />
               </MotionPressable>
             </View>
+            {errors.barcode ? (
+              <Text className="mt-1 font-bold text-[11.5px] text-red">
+                {errors.barcode.message}
+              </Text>
+            ) : null}
           </View>
 
           {/* Kategori */}

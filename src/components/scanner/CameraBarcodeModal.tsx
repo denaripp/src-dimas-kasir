@@ -1,4 +1,5 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { normalizeBarcode } from '@/lib/barcode';
 import {
   CameraView,
   useCameraPermissions,
@@ -47,7 +48,7 @@ export function CameraBarcodeModal({
 
   const handleBarcodeScanned = useCallback(
     (result: BarcodeScanningResult) => {
-      const code = result.data?.trim();
+      const code = normalizeBarcode(result.data);
       if (!code) return;
 
       const now = Date.now();

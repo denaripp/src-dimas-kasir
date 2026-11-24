@@ -88,6 +88,7 @@ export default function SaleDetailScreen() {
 
   const isVoid = sale.status === 'void';
   const receiptPayload = { sale, items: sale.sale_items ?? [] };
+  const totalUnits = receiptPayload.items.reduce((sum, item) => sum + item.qty, 0);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -196,6 +197,12 @@ export default function SaleDetailScreen() {
 
           {/* Total Breakdown */}
           <View className="gap-1.5">
+            <View className="flex-row justify-between">
+              <Text className="font-medium text-[12.5px] text-muted">Total Item</Text>
+              <Text className="font-bold text-[12.5px] text-black" style={styles.tabular}>
+                {receiptPayload.items.length} ({totalUnits} pcs)
+              </Text>
+            </View>
             <View className="flex-row justify-between">
               <Text className="font-extrabold text-[14.5px] text-black">Total</Text>
               <Text

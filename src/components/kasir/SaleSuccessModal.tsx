@@ -26,7 +26,8 @@ export const SaleSuccessModal = memo(function SaleSuccessModal({
   onSharePdf,
   onClose,
 }: SaleSuccessModalProps) {
-  const { sale } = saleResult;
+  const { sale, items } = saleResult;
+  const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -54,6 +55,12 @@ export const SaleSuccessModal = memo(function SaleSuccessModal({
               <Text className="font-medium text-[12px] text-muted">Waktu</Text>
               <Text className="font-bold text-[12px] text-black">
                 {formatDateTime(sale.created_at)}
+              </Text>
+            </View>
+            <View className="mb-1.5 flex-row justify-between">
+              <Text className="font-medium text-[12px] text-muted">Total Item</Text>
+              <Text className="font-bold text-[12px] text-black" style={styles.tabular}>
+                {items.length} ({totalUnits} pcs)
               </Text>
             </View>
             <View className="mb-1.5 flex-row justify-between">

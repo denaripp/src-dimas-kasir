@@ -1,3 +1,4 @@
+import { matchBarcode } from '@/lib/barcode';
 import type { ProductRow } from '@/types/database';
 
 export function extractProductCategories(products: readonly ProductRow[]): string[] {
@@ -44,6 +45,7 @@ export function filterProducts(
     return (
       p.name.toLowerCase().includes(q) ||
       (p.barcode ?? '').toLowerCase().includes(q) ||
+      matchBarcode(p.barcode, q) ||
       p.category.toLowerCase().includes(q)
     );
   });

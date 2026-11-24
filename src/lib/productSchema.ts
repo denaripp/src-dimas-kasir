@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeBarcode } from '@/lib/barcode';
 
 const PG_INT4_MAX = 2_147_483_647;
 
@@ -22,7 +23,10 @@ export const productFormSchema = z.object({
     .trim()
     .min(1, 'Nama barang wajib diisi')
     .max(120, 'Nama barang maksimal 120 karakter'),
-  barcode: z.string().trim().max(64, 'Barcode maksimal 64 karakter'),
+  barcode: z
+    .string()
+    .transform((v) => normalizeBarcode(v))
+    .pipe(z.string().max(256, 'Barcode maksimal 256 karakter')),
   category: z.string().trim().max(60, 'Kategori maksimal 60 karakter'),
   sell_price: nonNegativeIntString('Harga jual', true),
   cost_price: nonNegativeIntString('Harga modal', false),

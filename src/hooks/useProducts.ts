@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { normalizeBarcode } from '@/lib/barcode';
 import { toUserFriendlyError } from '@/lib/errorMessage';
 import {
   deleteStorageImageByUrl,
@@ -135,7 +136,7 @@ export function useSaveProductMutation() {
 
   return useMutation({
     mutationFn: async (input: SaveProductInput): Promise<ProductRow> => {
-      const cleanBarcode = input.barcode?.trim() ? input.barcode.trim() : null;
+      const cleanBarcode = normalizeBarcode(input.barcode) || null;
 
       if (input.id) {
         const updatePayload: Record<string, unknown> = {
@@ -222,7 +223,18 @@ export function useSaveProductMutation() {
 
       return product;
     },
-    onSuccess: (product) => {
+    onSuccess: (product, input) => {
+      queryClient.setQueryData<ProductRow[]>(
+        PRODUCT_KEYS.list(input.store_id),
+        (old) => {
+          if (!old) return [product];
+          const exists = old.some((p) => p.id === product.id);
+          if (exists) {
+            return old.map((p) => (p.id === product.id ? product : p));
+          }
+          return [product, ...old].sort((a, b) => a.name.localeCompare(b.name));
+        },
+      );
       void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
       void queryClient.invalidateQueries({
         queryKey: PRODUCT_KEYS.movements(product.id),
@@ -256,7 +268,12 @@ export function useDeleteProductMutation() {
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (_, input) => {
+      const productId = typeof input === 'string' ? input : input.productId;
+      queryClient.setQueriesData<ProductRow[]>({ queryKey: ['products', 'list'] }, (old) => {
+        if (!old) return [];
+        return old.filter((p) => p.id !== productId);
+      });
       void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
     },
   });

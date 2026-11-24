@@ -12,8 +12,8 @@ import {
 } from '../receiptFormatter';
 
 const sampleStore: ReceiptStoreInfo = {
-  name: 'Toko Dimas',
-  address: 'Jl. Merdeka No. 12',
+  name: 'Toko SRC Dimas',
+  address: 'Jl. Raya Belawa Wangkelang, Desa Wangkelang',
   phone: '08123456789',
   logo_url: null,
   receipt_footer: 'Terima kasih telah berbelanja!',
@@ -53,21 +53,28 @@ describe('receiptFormatter', () => {
   });
 
   test('formatTwoColumns menjaga lebar kolom tepat tanpa melampaui batas', () => {
-    const line = formatTwoColumns('2 x Rp3.500', 'Rp7.000', 32);
+    const line = formatTwoColumns('  2 x Rp3.500', 'Rp7.000', 32);
     expect(line.length).toBe(32);
     expect(line).toContain('2 x Rp3.500');
     expect(line).toContain('Rp7.000');
   });
 
-  test('buildEscPosReceiptText memuat nomor struk, item, format Rp tanpa spasi, dan footer', () => {
+  test('buildEscPosReceiptText memuat header ritel, no struk, item dua baris, total item, dan footer', () => {
     const text = buildEscPosReceiptText(sampleSale, sampleItems, sampleStore);
-    expect(text).toContain('Toko Dimas');
-    expect(text).toContain('SDK-20261123-0001');
-    expect(text).toContain('Indomie Goreng');
+    expect(text).toContain('================================');
+    expect(text).toContain('TOKO SRC DIMAS');
+    expect(text).toContain('Jl. Raya Belawa Wangkelang');
+    expect(text).toContain('No. Struk : SDK-20261123-0001');
+    expect(text).toContain('Kasir     : Toko SRC Dimas');
+    expect(text).toContain('INDOMIE GORENG');
+    expect(text).toContain('2 x Rp3.500');
     expect(text).toContain('Rp7.000');
-    expect(text).toContain('Rp10.000');
-    expect(text).toContain('Rp3.000');
-    expect(text).toContain('Terima kasih telah berbelanja!');
+    expect(text).toContain('Total Item :');
+    expect(text).toContain('1 (2 pcs)');
+    expect(text).toContain('TOTAL      :');
+    expect(text).toContain('TUNAI      :');
+    expect(text).toContain('KEMBALI    :');
+    expect(text).toContain('Terima Kasih Telah Berbelanja');
   });
 
   test('buildReceiptHtml menampilkan tanda VOID dan meng-escape HTML dengan aman', () => {
@@ -82,14 +89,21 @@ describe('receiptFormatter', () => {
       paper_size: 80,
     });
     expect(html).toContain('width: 80mm');
-    expect(html).toContain('TRANSAKSI VOID');
+    expect(html).toContain('*** TRANSAKSI VOID ***');
     expect(html).toContain('Salah &lt;input&gt;');
+    expect(html).toContain('Total Item :');
+    expect(html).toContain('1 (2 pcs)');
   });
 
   test('buildTestReceiptText menghasilkan slip tes cetak sesuai ukuran kertas', () => {
-    const slip = buildTestReceiptText({ name: 'Toko Dimas', paper_size: 58 });
+    const slip = buildTestReceiptText({
+      name: 'Toko SRC Dimas',
+      address: 'Jl. Raya Belawa Wangkelang',
+      paper_size: 58,
+    });
     expect(slip).toContain('TES CETAK PRINTER 58mm');
     expect(slip).toContain('Rp15.000');
+    expect(slip).toContain('================================');
   });
 
   test('sanitizeEscPosText membersihkan byte kontrol ESC/GS dan tag markup (F-07)', () => {
