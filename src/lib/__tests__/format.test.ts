@@ -49,23 +49,23 @@ describe('parseTimestampSafe & formatReceiptDateTime (WIB UTC+7)', () => {
     expect(parseTimestampSafe(null)).toBe(null);
   });
 
-  test('formatReceiptDateTime selalu mengonversi UTC ke WIB (UTC+7) format DD/MM/YYYY HH:mm:ss', () => {
-    // 11:45:12 UTC = 18:45:12 WIB
+  test('formatReceiptDateTime selalu mengonversi UTC ke WIB (UTC+7) format DD/MM/YYYY HH:mm', () => {
+    // 11:45:12 UTC = 18:45 WIB (tanpa detik)
     expect(formatReceiptDateTime('2026-11-24T11:45:12.123456+00:00')).toBe(
-      '24/11/2026 18:45:12',
+      '24/11/2026 18:45',
     );
     expect(formatReceiptDateTime('2026-11-24 11:45:12.987654+00')).toBe(
-      '24/11/2026 18:45:12',
+      '24/11/2026 18:45',
     );
-    // Pergantian hari UTC -> WIB: 23 Nov 18:30:05 UTC = 24 Nov 01:30:05 WIB
+    // Pergantian hari UTC -> WIB: 23 Nov 18:30:05 UTC = 24 Nov 01:30 WIB
     expect(formatReceiptDateTime('2026-11-23T18:30:05.000Z')).toBe(
-      '24/11/2026 01:30:05',
+      '24/11/2026 01:30',
     );
   });
 
   test('formatReceiptDateTime fallback ke waktu real-time sekarang jika input kosong/invalid', () => {
     const formatted = formatReceiptDateTime(null);
-    expect(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/.test(formatted)).toBe(true);
+    expect(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(formatted)).toBe(true);
   });
 });
 

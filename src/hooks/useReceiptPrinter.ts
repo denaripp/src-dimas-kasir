@@ -13,10 +13,7 @@ export interface PrintableReceipt {
   items: SaleItemRow[];
 }
 
-export function useReceiptPrinter(options?: {
-  successTitle?: string;
-  isReprint?: boolean;
-}) {
+export function useReceiptPrinter(options?: { successTitle?: string }) {
   const { store } = useAuth();
   const selectedPrinter = usePrinterStore((s) => s.selectedPrinter);
 
@@ -27,10 +24,9 @@ export function useReceiptPrinter(options?: {
   const buildRenderOptions = useCallback(
     (): ReceiptRenderOptions => ({
       paper_size: store?.paper_size ?? 58,
-      isReprint: options?.isReprint ?? false,
       printedAt: new Date(),
     }),
-    [store?.paper_size, options?.isReprint],
+    [store?.paper_size],
   );
 
   const printBluetooth = useCallback(

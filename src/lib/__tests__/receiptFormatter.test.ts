@@ -26,13 +26,13 @@ const sampleSale: SaleRow = {
   id: 'sale-1',
   store_id: 'store-1',
   receipt_number: 'SDK-20261124-0001',
-  total_amount: 7000,
-  cash_received: 10000,
-  change_amount: 3000,
+  total_amount: 14000,
+  cash_received: 50000,
+  change_amount: 36000,
   status: 'completed',
   void_reason: null,
   voided_at: null,
-  created_at: '2026-11-24T11:45:12.123456+00:00', // 18:45:12 WIB
+  created_at: '2026-11-24T11:45:12.123456+00:00', // 18:45 WIB
 };
 
 const sampleItems: SaleItemRow[] = [
@@ -41,10 +41,10 @@ const sampleItems: SaleItemRow[] = [
     sale_id: 'sale-1',
     product_id: 'prod-1',
     product_name_snapshot: 'Indomie Goreng',
-    qty: 2,
+    qty: 4,
     sell_price_snapshot: 3500,
     cost_price_snapshot: 2800,
-    subtotal: 7000,
+    subtotal: 14000,
   },
 ];
 
@@ -55,16 +55,16 @@ describe('receiptFormatter', () => {
   });
 
   test('formatTwoColumns menjaga lebar kolom tepat dan mempertahankan indentasi kiri', () => {
-    const line = formatTwoColumns('  2 x Rp3.500', 'Rp7.000', 32);
+    const line = formatTwoColumns('  4 x Rp3.500', 'Rp14.000', 32);
     expect(line.length).toBe(32);
-    expect(line.startsWith('  2 x Rp3.500')).toBe(true);
-    expect(line.endsWith('Rp7.000')).toBe(true);
+    expect(line.startsWith('  4 x Rp3.500')).toBe(true);
+    expect(line.endsWith('Rp14.000')).toBe(true);
   });
 
-  test('buildEscPosReceiptText mengunci brand TOKO SRC DIMAS & jam WIB real-time (abaikan profil DB)', () => {
+  test('buildEscPosReceiptText mengunci TOKO SRC DIMAS, layout lega tanpa <B> raksasa, dan 1 baris Tanggal WIB', () => {
     const text = buildEscPosReceiptText(sampleSale, sampleItems, foreignProfileStore);
+
     // Identitas wajib TOKO SRC DIMAS
-    expect(text).toContain('================================');
     expect(text).toContain('<CB>TOKO SRC DIMAS</CB>');
     expect(text).toContain('Jl. Raya Belawa Wangkelang,');
     expect(text).toContain('Desa Wangkelang');
@@ -78,31 +78,32 @@ describe('receiptFormatter', () => {
     expect(text).not.toContain('Footer Profil Salah');
     expect(text).not.toContain('08999999999');
 
-    // Jam wajib WIB (11:45:12 UTC -> 18:45:12 WIB)
+    // Tanpa tag <B> (4x raksasa), tanpa garis ganda sempit, tanpa baris duplikat Dicetak
+    expect(text).not.toContain('<B>');
+    expect(text).not.toContain('</B>');
+    expect(text).not.toContain('================================');
+    expect(text).not.toContain('Dicetak');
+
+    // Jam wajib WIB tanpa detik (11:45:12 UTC -> 18:45 WIB)
     expect(text).toContain('No. Struk : SDK-20261124-0001');
-    expect(text).toContain('Tanggal   : 24/11/2026 18:45:12');
+    expect(text).toContain('Tanggal   : 24/11/2026 18:45');
 
-    // Rincian & ringkasan
-    expect(text).toContain('INDOMIE GORENG');
-    expect(text).toContain('  2 x Rp3.500');
-    expect(text).toContain('Total Item :');
-    expect(text).toContain('1 (2 pcs)');
-    expect(text).toContain('TOTAL      :');
-    expect(text).toContain('TUNAI      :');
-    expect(text).toContain('KEMBALI    :');
+    // Ringkasan sejajar tepat 32 karakter per baris
+    const lines = text.split('\n');
+    const totalItemLine = lines.find((l) => l.startsWith('Total Item'));
+    const totalLine = lines.find((l) => l.startsWith('TOTAL'));
+    const tunaiLine = lines.find((l) => l.startsWith('TUNAI'));
+    const kembaliLine = lines.find((l) => l.startsWith('KEMBALI'));
+    expect(totalItemLine?.length).toBe(32);
+    expect(totalLine?.length).toBe(32);
+    expect(tunaiLine?.length).toBe(32);
+    expect(kembaliLine?.length).toBe(32);
+    expect(totalLine?.endsWith('Rp14.000')).toBe(true);
+    expect(tunaiLine?.endsWith('Rp50.000')).toBe(true);
+    expect(kembaliLine?.endsWith('Rp36.000')).toBe(true);
   });
 
-  test('buildEscPosReceiptText mode cetak ulang (isReprint) menampilkan jam Dicetak real-time WIB', () => {
-    const text = buildEscPosReceiptText(sampleSale, sampleItems, {
-      paper_size: 58,
-      isReprint: true,
-      printedAt: '2026-11-24T12:10:05.000Z', // 19:10:05 WIB
-    });
-    expect(text).toContain('Tanggal   : 24/11/2026 18:45:12');
-    expect(text).toContain('Dicetak   : 24/11/2026 19:10:05');
-  });
-
-  test('buildReceiptHtml mengunci TOKO SRC DIMAS, jam WIB, VOID, dan escape HTML aman', () => {
+  test('buildReceiptHtml mengunci TOKO SRC DIMAS, jam WIB tanpa detik, VOID, dan escape HTML aman', () => {
     const voidSale: SaleRow = {
       ...sampleSale,
       status: 'void',
@@ -117,21 +118,22 @@ describe('receiptFormatter', () => {
     expect(html).toContain('TOKO SRC DIMAS');
     expect(html).toContain('Jl. Raya Belawa Wangkelang, Desa Wangkelang');
     expect(html).toContain('Kasir     : Toko SRC Dimas');
-    expect(html).toContain('Tanggal   : 24/11/2026 18:45:12');
+    expect(html).toContain('Tanggal   : 24/11/2026 18:45');
+    expect(html).not.toContain('Dicetak');
     expect(html).not.toContain('Akun Google Orang Lain');
     expect(html).not.toContain('store-logos');
     expect(html).toContain('*** TRANSAKSI VOID ***');
     expect(html).toContain('Salah &lt;input&gt;');
   });
 
-  test('buildTestReceiptText selalu memakai TOKO SRC DIMAS dan waktu WIB', () => {
+  test('buildTestReceiptText selalu memakai TOKO SRC DIMAS dan waktu WIB tanpa detik', () => {
     const slip = buildTestReceiptText({
       paper_size: 58,
-      printedAt: '2026-11-24T11:50:30.000Z', // 18:50:30 WIB
+      printedAt: '2026-11-24T11:50:30.000Z', // 18:50 WIB
     });
     expect(slip).toContain('<CB>TOKO SRC DIMAS</CB>');
     expect(slip).toContain('TES CETAK PRINTER 58mm');
-    expect(slip).toContain('Waktu       : 24/11/2026 18:50:30');
+    expect(slip).toContain('24/11/2026 18:50');
     expect(slip).toContain('Rp15.000');
   });
 

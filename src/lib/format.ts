@@ -129,15 +129,15 @@ export function formatIsoDateLocal(date: Date = new Date()): string {
 
 /**
  * Format tanggal dan jam struk dalam WIB (UTC+7) secara deterministik:
- * DD/MM/YYYY HH:mm:ss (contoh: 24/11/2026 18:45:12).
+ * DD/MM/YYYY HH:mm (contoh: 24/11/2026 19:32, tanpa detik).
  * Jika input kosong/tidak valid, fallback otomatis ke waktu sekarang (real-time).
  */
 export function formatReceiptDateTime(
   input?: Date | string | number | null,
 ): string {
   const date = parseTimestampSafe(input) ?? new Date();
-  const { day, month, year, hours, minutes, seconds } = getWibDateParts(date);
-  return `${pad2(day)}/${pad2(month)}/${year} ${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+  const { day, month, year, hours, minutes } = getWibDateParts(date);
+  return `${pad2(day)}/${pad2(month)}/${year} ${pad2(hours)}:${pad2(minutes)}`;
 }
 
 /**

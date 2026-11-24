@@ -9,7 +9,6 @@ export type ReceiptStoreInfo = Pick<
 
 export interface ReceiptRenderOptions {
   paper_size?: PaperSize;
-  isReprint?: boolean;
   printedAt?: Date | string | number;
 }
 
@@ -49,9 +48,9 @@ export function isTrustedLogoUrl(url: string | null | undefined): url is string 
 }
 
 /**
- * Menghasilkan teks struk thermal ESC/POS (58mm / 80mm).
- * Identitas toko dikunci permanen ke STORE_BRAND ("TOKO SRC DIMAS") — tidak mengikuti
- * profil akun Google maupun kolom metadata profil di database.
+ * Menghasilkan teks struk thermal ESC/POS (58mm / 80mm) dengan tata letak lega,
+ * ukuran huruf ringkasan seragam (tanpa <B> 4x), dan 1 baris Tanggal WIB tanpa detik.
+ * Identitas toko dikunci permanen ke STORE_BRAND ("TOKO SRC DIMAS").
  */
 export function buildEscPosReceiptText(
   sale: SaleRow,
@@ -59,19 +58,15 @@ export function buildEscPosReceiptText(
   options?: ReceiptRenderOptions | ReceiptStoreInfo,
 ): string {
   const paperSize: PaperSize = options?.paper_size === 80 ? 80 : 58;
-  const isReprint = 'isReprint' in (options ?? {}) ? Boolean((options as ReceiptRenderOptions).isReprint) : false;
-  const printedAt = 'printedAt' in (options ?? {}) ? (options as ReceiptRenderOptions).printedAt : undefined;
-
   const width = getReceiptLineWidth(paperSize);
-  const doubleDivider = '='.repeat(width);
-  const singleDivider = '-'.repeat(width);
+  const divider = '-'.repeat(width);
   const lines: string[] = [];
 
   const totalDistinctItems = items.length;
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
 
-  // 1. Header Toko (dikunci permanen ke TOKO SRC DIMAS)
-  lines.push(doubleDivider);
+  // 1. Header Toko (lega dengan ruang napas atas & bawah)
+  lines.push('');
   lines.push(`<CB>${STORE_BRAND.nameUpper}</CB>`);
   if (paperSize === 80) {
     lines.push(`<C>${STORE_BRAND.address}</C>`);
@@ -80,28 +75,29 @@ export function buildEscPosReceiptText(
       lines.push(`<C>${addrLine}</C>`);
     }
   }
-  lines.push(doubleDivider);
+  lines.push('');
 
-  // 2. Metadata Transaksi (WIB real-time DD/MM/YYYY HH:mm:ss)
+  // 2. Metadata Transaksi (1 baris Tanggal WIB DD/MM/YYYY HH:mm)
+  lines.push(divider);
   lines.push(`No. Struk : ${sanitizeEscPosText(sale.receipt_number)}`);
   lines.push(`Tanggal   : ${formatReceiptDateTime(sale.created_at)}`);
-  if (isReprint) {
-    lines.push(`Dicetak   : ${formatReceiptDateTime(printedAt ?? new Date())}`);
-  }
   lines.push(`Kasir     : ${STORE_BRAND.cashierName}`);
+  lines.push(divider);
 
   // 3. Status VOID jika ada
   if (sale.status === 'void') {
-    lines.push(singleDivider);
-    lines.push('<CB>*** TRANSAKSI VOID ***</CB>');
+    lines.push('');
+    lines.push('<C>*** TRANSAKSI VOID ***</C>');
     const safeVoidReason = sale.void_reason ? sanitizeEscPosText(sale.void_reason) : '';
     if (safeVoidReason) {
       lines.push(`<C>Alasan: ${safeVoidReason}</C>`);
     }
+    lines.push('');
+    lines.push(divider);
   }
 
   // 4. Rincian Barang
-  lines.push(singleDivider);
+  lines.push('');
   for (const item of items) {
     const itemName = (sanitizeEscPosText(item.product_name_snapshot) || 'BARANG').toUpperCase();
     lines.push(itemName);
@@ -109,27 +105,23 @@ export function buildEscPosReceiptText(
     const subtotal = formatRupiah(item.subtotal);
     lines.push(formatTwoColumns(qtyPrice, subtotal, width));
   }
+  lines.push('');
 
-  // 5. Total & Pembayaran
-  lines.push(singleDivider);
-  lines.push(
-    formatTwoColumns('Total Item :', `${totalDistinctItems} (${totalUnits} pcs)`, width),
-  );
-  lines.push(
-    `<B>${formatTwoColumns('TOTAL      :', formatRupiah(sale.total_amount), width)}</B>`,
-  );
-  lines.push(formatTwoColumns('TUNAI      :', formatRupiah(sale.cash_received), width));
-  lines.push(formatTwoColumns('KEMBALI    :', formatRupiah(sale.change_amount), width));
-  lines.push(doubleDivider);
+  // 5. Total & Pembayaran (ukuran huruf seragam, rata kanan presisi)
+  lines.push(divider);
+  lines.push('');
+  lines.push(formatTwoColumns('Total Item', `${totalDistinctItems} (${totalUnits} pcs)`, width));
+  lines.push(formatTwoColumns('TOTAL', formatRupiah(sale.total_amount), width));
+  lines.push(formatTwoColumns('TUNAI', formatRupiah(sale.cash_received), width));
+  lines.push(formatTwoColumns('KEMBALI', formatRupiah(sale.change_amount), width));
+  lines.push('');
 
-  // 6. Footer Toko (dikunci permanen ke Toko SRC DIMAS)
+  // 6. Footer Toko
+  lines.push(divider);
+  lines.push('');
   for (const footerLine of STORE_BRAND.footerLines) {
     lines.push(`<C>${footerLine}</C>`);
   }
-  lines.push(doubleDivider);
-
-  // 3 baris kosong untuk jarak pemotongan kertas thermal
-  lines.push('');
   lines.push('');
   lines.push('');
 
@@ -142,8 +134,7 @@ export function buildTestReceiptText(
   const paperSize: PaperSize = options?.paper_size === 80 ? 80 : 58;
   const printedAt = 'printedAt' in (options ?? {}) ? (options as ReceiptRenderOptions).printedAt : undefined;
   const width = getReceiptLineWidth(paperSize);
-  const doubleDivider = '='.repeat(width);
-  const singleDivider = '-'.repeat(width);
+  const divider = '-'.repeat(width);
 
   const addressLines =
     paperSize === 80
@@ -151,18 +142,20 @@ export function buildTestReceiptText(
       : STORE_BRAND.addressLines58.map((line) => `<C>${line}</C>`);
 
   return [
-    doubleDivider,
+    '',
     `<CB>${STORE_BRAND.nameUpper}</CB>`,
     ...addressLines,
     `<C>TES CETAK PRINTER ${paperSize}mm</C>`,
-    doubleDivider,
-    formatTwoColumns('Lebar Baris :', `${width} karakter`, width),
-    formatTwoColumns('Format Uang :', formatRupiah(15000), width),
-    `Waktu       : ${formatReceiptDateTime(printedAt ?? new Date())}`,
-    singleDivider,
-    '<C>Printer Terhubung & Siap Pakai</C>',
-    doubleDivider,
     '',
+    divider,
+    '',
+    formatTwoColumns('Lebar Baris', `${width} karakter`, width),
+    formatTwoColumns('Format Uang', formatRupiah(15000), width),
+    formatTwoColumns('Waktu', formatReceiptDateTime(printedAt ?? new Date()), width),
+    '',
+    divider,
+    '',
+    '<C>Printer Terhubung & Siap Pakai</C>',
     '',
     '',
   ].join('\n');
@@ -178,8 +171,8 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Menghasilkan HTML struk untuk ekspor PDF / WhatsApp.
- * Identitas toko dikunci permanen ke STORE_BRAND ("TOKO SRC DIMAS").
+ * Menghasilkan HTML struk untuk ekspor PDF / WhatsApp yang selaras 1:1
+ * dengan tata letak thermal fisik lega (58mm / 80mm).
  */
 export function buildReceiptHtml(
   sale: SaleRow,
@@ -188,8 +181,6 @@ export function buildReceiptHtml(
 ): string {
   const paperSize: PaperSize = options?.paper_size === 80 ? 80 : 58;
   const paperMm = paperSize === 80 ? '80mm' : '58mm';
-  const isReprint = 'isReprint' in (options ?? {}) ? Boolean((options as ReceiptRenderOptions).isReprint) : false;
-  const printedAt = 'printedAt' in (options ?? {}) ? (options as ReceiptRenderOptions).printedAt : undefined;
 
   const totalDistinctItems = items.length;
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
@@ -218,10 +209,6 @@ export function buildReceiptHtml(
       `
       : '';
 
-  const reprintRowHtml = isReprint
-    ? `<div class="meta-row">Dicetak   : ${escapeHtml(formatReceiptDateTime(printedAt ?? new Date()))}</div>`
-    : '';
-
   const footerLinesHtml = STORE_BRAND.footerLines
     .map((line) => `<div>${escapeHtml(line)}</div>`)
     .join('');
@@ -232,74 +219,78 @@ export function buildReceiptHtml(
   <meta charset="UTF-8" />
   <title>Struk ${escapeHtml(sale.receipt_number)}</title>
   <style>
-    @page { margin: 6px; }
+    @page { margin: 8px; }
     body {
       font-family: 'Courier New', Courier, monospace;
       color: #09090B;
       background: #FFFFFF;
       width: ${paperMm};
       margin: 0 auto;
-      padding: 10px 8px;
+      padding: 16px 10px;
       font-size: 11.5px;
-      line-height: 1.35;
+      line-height: 1.45;
     }
     .center { text-align: center; }
-    .store-name { font-size: 14.5px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .header { margin-bottom: 12px; }
+    .store-name { font-size: 15px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; }
     .store-meta { font-size: 11px; color: #27272A; }
-    .double-divider { border-top: 2px solid #09090B; margin: 6px 0; }
-    .single-divider { border-top: 1px dashed #09090B; margin: 6px 0; }
+    .divider { border-top: 1px dashed #09090B; margin: 10px 0; }
+    .section { padding: 4px 0; }
     .row { display: flex; justify-content: space-between; gap: 8px; }
-    .meta-row { font-size: 11px; margin-bottom: 2px; white-space: pre; }
-    .item { margin-bottom: 5px; }
+    .meta-row { font-size: 11px; margin-bottom: 3px; white-space: pre; }
+    .item { margin-bottom: 7px; }
+    .item:last-child { margin-bottom: 0; }
     .item-name { font-weight: 700; font-size: 11.5px; }
-    .item-detail { font-size: 11px; }
+    .item-detail { font-size: 11.5px; }
     .qty-price { font-weight: 500; }
     .subtotal { font-weight: 700; }
-    .summary-row { margin-bottom: 2px; }
-    .total-row { font-size: 13.5px; font-weight: 800; margin: 3px 0; }
+    .summary-row { font-size: 11.5px; margin-bottom: 4px; }
+    .summary-row:last-child { margin-bottom: 0; }
+    .total-row { font-size: 11.5px; font-weight: 800; margin-bottom: 4px; }
     .void-box {
       border: 1.5px solid #D91E2A;
       color: #D91E2A;
       text-align: center;
       font-weight: 800;
       padding: 6px;
-      margin: 6px 0;
+      margin: 10px 0;
     }
     .void-reason { font-size: 10.5px; font-weight: 600; margin-top: 2px; }
-    .footer { text-align: center; font-size: 11px; font-weight: 600; line-height: 1.4; }
+    .footer { text-align: center; font-size: 11px; font-weight: 600; line-height: 1.5; padding-top: 4px; }
   </style>
 </head>
 <body>
-  <div class="double-divider"></div>
-  <div class="center">
+  <div class="center header">
     <div class="store-name">${escapeHtml(STORE_BRAND.nameUpper)}</div>
     <div class="store-meta">${escapeHtml(STORE_BRAND.address)}</div>
   </div>
-  <div class="double-divider"></div>
 
-  <div class="meta-row">No. Struk : <strong>${escapeHtml(sale.receipt_number)}</strong></div>
-  <div class="meta-row">Tanggal   : ${escapeHtml(formatReceiptDateTime(sale.created_at))}</div>
-  ${reprintRowHtml}
-  <div class="meta-row">Kasir     : ${escapeHtml(STORE_BRAND.cashierName)}</div>
+  <div class="divider"></div>
+  <div class="section">
+    <div class="meta-row">No. Struk : <strong>${escapeHtml(sale.receipt_number)}</strong></div>
+    <div class="meta-row">Tanggal   : ${escapeHtml(formatReceiptDateTime(sale.created_at))}</div>
+    <div class="meta-row">Kasir     : ${escapeHtml(STORE_BRAND.cashierName)}</div>
+  </div>
+  <div class="divider"></div>
 
   ${voidBannerHtml}
 
-  <div class="single-divider"></div>
+  <div class="section">
+    ${itemRowsHtml}
+  </div>
 
-  ${itemRowsHtml}
+  <div class="divider"></div>
 
-  <div class="single-divider"></div>
+  <div class="section">
+    <div class="row summary-row"><span>Total Item</span><span>${totalDistinctItems} (${totalUnits} pcs)</span></div>
+    <div class="row total-row"><span>TOTAL</span><span>${escapeHtml(formatRupiah(sale.total_amount))}</span></div>
+    <div class="row summary-row"><span>TUNAI</span><span>${escapeHtml(formatRupiah(sale.cash_received))}</span></div>
+    <div class="row summary-row"><span>KEMBALI</span><strong>${escapeHtml(formatRupiah(sale.change_amount))}</strong></div>
+  </div>
 
-  <div class="row summary-row"><span>Total Item :</span><span>${totalDistinctItems} (${totalUnits} pcs)</span></div>
-  <div class="row total-row"><span>TOTAL      :</span><span>${escapeHtml(formatRupiah(sale.total_amount))}</span></div>
-  <div class="row summary-row"><span>TUNAI      :</span><span>${escapeHtml(formatRupiah(sale.cash_received))}</span></div>
-  <div class="row summary-row"><span>KEMBALI    :</span><strong>${escapeHtml(formatRupiah(sale.change_amount))}</strong></div>
-
-  <div class="double-divider"></div>
+  <div class="divider"></div>
 
   <div class="footer">${footerLinesHtml}</div>
-
-  <div class="double-divider"></div>
 </body>
 </html>`;
 }
