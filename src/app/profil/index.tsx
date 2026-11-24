@@ -33,7 +33,6 @@ export default function ProfilScreen() {
   const deleteAccount = useDeleteAccountMutation();
 
   const selectedPrinter = usePrinterStore((s) => s.selectedPrinter);
-  const hydratePrinter = usePrinterStore((s) => s.hydrate);
 
   const [name, setName] = useState(store?.name ?? '');
   const [address, setAddress] = useState(store?.address ?? '');
@@ -50,10 +49,6 @@ export default function ProfilScreen() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [confirmStoreName, setConfirmStoreName] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void hydratePrinter();
-  }, [hydratePrinter]);
 
   useEffect(() => {
     if (store) {
