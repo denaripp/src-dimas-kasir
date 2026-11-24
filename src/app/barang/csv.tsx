@@ -1,7 +1,6 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -26,6 +25,7 @@ import {
   type CsvParseResult,
 } from '@/lib/csvProducts';
 import { formatLocalDateKey, formatRupiah } from '@/lib/format';
+import { shareCsvFile } from '@/lib/shareFile';
 
 type PreviewTab = 'valid' | 'error';
 
@@ -40,37 +40,15 @@ export default function CsvProductsScreen() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>('valid');
   const [isExporting, setIsExporting] = useState(false);
 
-  const shareCsvFile = async (filename: string, content: string) => {
-    const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
-    if (!dir) {
-      Alert.alert('Gagal', 'Direktori penyimpanan sementara tidak tersedia.');
-      return;
-    }
-
-    const fileUri = `${dir}${filename}`;
-    await FileSystem.writeAsStringAsync(fileUri, content, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-
-    const canShare = await Sharing.isAvailableAsync();
-    if (!canShare) {
-      Alert.alert('Berhasil', `File disimpan di: ${fileUri}`);
-      return;
-    }
-
-    await Sharing.shareAsync(fileUri, {
-      mimeType: 'text/csv',
-      dialogTitle: filename,
-      UTI: 'public.comma-separated-values-text',
-    });
-  };
-
   const handleExportProducts = async () => {
     setIsExporting(true);
     try {
       const csv = generateProductsCsv(products);
       const filename = `barang-src-dimas-${formatLocalDateKey()}.csv`;
-      await shareCsvFile(filename, csv);
+      const res = await shareCsvFile({ filename, content: csv });
+      if (!res.shared) {
+        Alert.alert('Berhasil', `File disimpan di: ${res.fileUri}`);
+      }
     } catch (err) {
       Alert.alert(
         'Gagal Ekspor CSV',
@@ -83,7 +61,13 @@ export default function CsvProductsScreen() {
 
   const handleDownloadTemplate = async () => {
     try {
-      await shareCsvFile('template-barang-src-dimas-kasir.csv', getProductsCsvTemplate());
+      const res = await shareCsvFile({
+        filename: 'template-barang-src-dimas-kasir.csv',
+        content: getProductsCsvTemplate(),
+      });
+      if (!res.shared) {
+        Alert.alert('Berhasil', `Template disimpan di: ${res.fileUri}`);
+      }
     } catch (err) {
       Alert.alert(
         'Gagal Membuat Template',

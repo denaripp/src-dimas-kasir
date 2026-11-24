@@ -1,6 +1,4 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -8,14 +6,15 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotionPressable } from '@/components/common/MotionPressable';
 import { ProductThumbnail } from '@/components/common/ProductThumbnail';
+import { SimpleBarChart } from '@/components/laporan/SimpleBarChart';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { usePeriodReportQuery } from '@/hooks/useReports';
@@ -27,6 +26,7 @@ import {
   type ReportPeriod,
 } from '@/lib/format';
 import { generateReportCsv } from '@/lib/reportCalc';
+import { shareCsvFile } from '@/lib/shareFile';
 
 function parseIsoLocalDate(iso: string): Date | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso.trim())) return undefined;
@@ -42,20 +42,39 @@ const PERIOD_OPTIONS: { key: ReportPeriod; label: string }[] = [
   { key: 'custom', label: 'Custom' },
 ];
 
+const styles = StyleSheet.create({
+  tabular: {
+    fontVariant: ['tabular-nums'],
+  },
+  scrollContent: {
+    paddingTop: 12,
+    paddingBottom: 32,
+  },
+  activeSegmentShadow: {
+    shadowColor: '#09090B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+});
+
 export default function LaporanScreen() {
   const router = useRouter();
   const { store } = useAuth();
   const { data: products = [] } = useProductsQuery(store?.id);
 
   const [period, setPeriod] = useState<ReportPeriod>('7d');
-  const [customStartText, setCustomStartText] = useState(() => formatIsoDateLocal());
-  const [customEndText, setCustomEndText] = useState(() => formatIsoDateLocal());
+  const [draftStartText, setDraftStartText] = useState(() => formatIsoDateLocal());
+  const [draftEndText, setDraftEndText] = useState(() => formatIsoDateLocal());
+  const [appliedStartText, setAppliedStartText] = useState(() => formatIsoDateLocal());
+  const [appliedEndText, setAppliedEndText] = useState(() => formatIsoDateLocal());
   const [isExporting, setIsExporting] = useState(false);
 
   const dateWindow = useMemo(() => {
     const now = new Date();
-    const customStart = parseIsoLocalDate(customStartText);
-    const customEnd = parseIsoLocalDate(customEndText);
+    const customStart = parseIsoLocalDate(appliedStartText);
+    const customEnd = parseIsoLocalDate(appliedEndText);
     const utcRange = getLocalPeriodRangeUtc(period, customStart, customEnd, now);
 
     const startDateLocal = formatIsoDateLocal(new Date(utcRange.startIso));
@@ -76,7 +95,7 @@ export default function LaporanScreen() {
       endDateLocal,
       label,
     };
-  }, [period, customStartText, customEndText]);
+  }, [period, appliedStartText, appliedEndText]);
 
   const {
     data: report,
@@ -98,41 +117,29 @@ export default function LaporanScreen() {
 
   const productImageMap = useMemo(() => {
     const map = new Map<string, string | null>();
-    products.forEach((p) => map.set(p.id, p.image_url));
+    for (const p of products) {
+      map.set(p.id, p.image_url);
+    }
     return map;
   }, [products]);
-
-  const chartData = useMemo(() => {
-    const series = report?.dailySeries ?? [];
-    if (series.length === 0) return [];
-    const maxVal = Math.max(...series.map((s) => s.totalSales), 1);
-
-    return series.slice(-7).map((point) => {
-      const isPeak = point.totalSales === maxVal && point.totalSales > 0;
-      return {
-        value: point.totalSales,
-        label: point.label.split(' ')[0],
-        frontColor: isPeak ? '#D91E2A' : '#E4E4E7',
-        topLabelComponent: () =>
-          isPeak ? (
-            <Text
-              className="mb-1 font-extrabold text-[9.5px] text-red"
-              style={{ fontVariant: ['tabular-nums'] }}
-            >
-              {point.totalSales >= 1000
-                ? `${Math.round(point.totalSales / 1000)}rb`
-                : `${point.totalSales}`}
-            </Text>
-          ) : null,
-      };
-    });
-  }, [report?.dailySeries]);
 
   const maxTopQty = useMemo(() => {
     const tops = report?.topProducts ?? [];
     if (tops.length === 0) return 1;
     return Math.max(...tops.map((t) => t.totalQty), 1);
   }, [report?.topProducts]);
+
+  const handleApplyCustomRange = () => {
+    if (!parseIsoLocalDate(draftStartText) || !parseIsoLocalDate(draftEndText)) {
+      Alert.alert(
+        'Format Tanggal Salah',
+        'Gunakan format YYYY-MM-DD (contoh: 2026-11-24).',
+      );
+      return;
+    }
+    setAppliedStartText(draftStartText.trim());
+    setAppliedEndText(draftEndText.trim());
+  };
 
   const handleExportReportCsv = async () => {
     if (!report) return;
@@ -144,25 +151,14 @@ export default function LaporanScreen() {
         report,
         lowStockProducts,
       );
-      const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
-      if (!dir) {
-        throw new Error('Direktori penyimpanan sementara tidak tersedia.');
-      }
-      const fileUri = `${dir}laporan-${period}-${formatLocalDateKey()}.csv`;
-      await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (!canShare) {
-        Alert.alert('Tersimpan', `File laporan CSV disimpan di: ${fileUri}`);
-        return;
-      }
-
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/csv',
+      const res = await shareCsvFile({
+        filename: `laporan-${period}-${formatLocalDateKey()}.csv`,
+        content: csv,
         dialogTitle: `Laporan ${dateWindow.label}`,
       });
+      if (!res.shared) {
+        Alert.alert('Tersimpan', `File laporan CSV disimpan di: ${res.fileUri}`);
+      }
     } catch (err) {
       Alert.alert(
         'Gagal Ekspor CSV',
@@ -177,8 +173,9 @@ export default function LaporanScreen() {
     <SafeAreaView edges={['top']} className="flex-1 bg-white">
       <ScrollView
         className="flex-1 px-[18px]"
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: 32 }}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -230,17 +227,7 @@ export default function LaporanScreen() {
                 onPress={() => setPeriod(opt.key)}
                 scaleTo={0.97}
                 className={`items-center rounded-[9px] py-2 ${active ? 'bg-white' : ''}`}
-                style={
-                  active
-                    ? {
-                        shadowColor: '#09090B',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.08,
-                        shadowRadius: 3,
-                        elevation: 1,
-                      }
-                    : undefined
-                }
+                style={active ? styles.activeSegmentShadow : undefined}
               >
                 <Text
                   className={`font-bold text-[11px] ${active ? 'text-black' : 'text-muted'}`}
@@ -252,29 +239,37 @@ export default function LaporanScreen() {
           })}
         </View>
 
-        {/* Custom Date Range Inputs */}
+        {/* Custom Date Range Inputs (Apply explicitly to avoid per-keystroke RPC) */}
         {period === 'custom' ? (
-          <View className="mb-3.5 flex-row gap-2.5">
-            <View className="flex-1">
-              <Text className="mb-1 font-bold text-[11px] text-muted">Dari (YYYY-MM-DD)</Text>
-              <TextInput
-                value={customStartText}
-                onChangeText={setCustomStartText}
-                placeholder="2026-11-01"
-                placeholderTextColor="#71717A"
-                className="rounded-control bg-surface px-3 py-2.5 font-semibold text-[12.5px] text-black"
-              />
+          <View className="mb-3.5 gap-2">
+            <View className="flex-row gap-2.5">
+              <View className="flex-1">
+                <Text className="mb-1 font-bold text-[11px] text-muted">Dari (YYYY-MM-DD)</Text>
+                <TextInput
+                  value={draftStartText}
+                  onChangeText={setDraftStartText}
+                  placeholder="2026-11-01"
+                  placeholderTextColor="#71717A"
+                  className="rounded-control bg-surface px-3 py-2.5 font-semibold text-[12.5px] text-black"
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="mb-1 font-bold text-[11px] text-muted">Sampai (YYYY-MM-DD)</Text>
+                <TextInput
+                  value={draftEndText}
+                  onChangeText={setDraftEndText}
+                  placeholder="2026-11-24"
+                  placeholderTextColor="#71717A"
+                  className="rounded-control bg-surface px-3 py-2.5 font-semibold text-[12.5px] text-black"
+                />
+              </View>
             </View>
-            <View className="flex-1">
-              <Text className="mb-1 font-bold text-[11px] text-muted">Sampai (YYYY-MM-DD)</Text>
-              <TextInput
-                value={customEndText}
-                onChangeText={setCustomEndText}
-                placeholder="2026-11-24"
-                placeholderTextColor="#71717A"
-                className="rounded-control bg-surface px-3 py-2.5 font-semibold text-[12.5px] text-black"
-              />
-            </View>
+            <MotionPressable
+              onPress={handleApplyCustomRange}
+              className="items-center rounded-control bg-black py-2.5"
+            >
+              <Text className="font-bold text-[12px] text-white">Terapkan Rentang</Text>
+            </MotionPressable>
           </View>
         ) : null}
 
@@ -292,7 +287,7 @@ export default function LaporanScreen() {
                 </Text>
                 <Text
                   className="font-semibold text-[11.5px] text-muted"
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  style={styles.tabular}
                 >
                   Biaya{' '}
                   <Text className="font-extrabold text-red">
@@ -303,41 +298,13 @@ export default function LaporanScreen() {
 
               <Text
                 className="mt-1 font-extrabold text-[25px] tracking-[-0.03em] text-black"
-                style={{ fontVariant: ['tabular-nums'] }}
+                style={styles.tabular}
               >
                 {formatRupiah(report?.totalSales ?? 0)}
               </Text>
 
-              <View className="mt-4 items-center overflow-hidden">
-                {chartData.length > 0 ? (
-                  <BarChart
-                    data={chartData}
-                    barWidth={24}
-                    spacing={14}
-                    roundedTop
-                    showGradient={false}
-                    rulesColor="#E4E4E7"
-                    rulesType="solid"
-                    yAxisThickness={0}
-                    xAxisThickness={1}
-                    xAxisColor="#E4E4E7"
-                    hideYAxisText
-                    height={132}
-                    noOfSections={3}
-                    isAnimated={false}
-                    xAxisLabelTextStyle={{
-                      color: '#71717A',
-                      fontSize: 10.5,
-                      fontWeight: '600',
-                    }}
-                  />
-                ) : (
-                  <View className="w-full items-center rounded-control bg-surface py-7">
-                    <Text className="font-medium text-[12px] text-muted">
-                      Belum ada grafik penjualan pada periode ini.
-                    </Text>
-                  </View>
-                )}
+              <View className="mt-4">
+                <SimpleBarChart series={report?.dailySeries ?? []} />
               </View>
             </View>
 
@@ -347,7 +314,7 @@ export default function LaporanScreen() {
                 <Text className="font-semibold text-[11.5px] text-muted">Laba Kotor</Text>
                 <Text
                   className="mt-1.5 font-extrabold text-[17px] text-black"
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  style={styles.tabular}
                 >
                   {formatRupiah(report?.grossProfit ?? 0)}
                 </Text>
@@ -363,7 +330,7 @@ export default function LaporanScreen() {
                   className={`mt-1.5 font-extrabold text-[17px] ${
                     (report?.netProfit ?? 0) < 0 ? 'text-red' : 'text-black'
                   }`}
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  style={styles.tabular}
                 >
                   {formatRupiah(report?.netProfit ?? 0)}
                 </Text>
@@ -375,7 +342,7 @@ export default function LaporanScreen() {
                 <Text className="font-semibold text-[11.5px] text-muted">Transaksi Selesai</Text>
                 <Text
                   className="mt-1.5 font-extrabold text-[17px] text-black"
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  style={styles.tabular}
                 >
                   {report?.completedCount ?? 0}
                 </Text>
@@ -391,7 +358,7 @@ export default function LaporanScreen() {
                   className={`mt-1.5 font-extrabold text-[17px] ${
                     lowStockProducts.length > 0 ? 'text-red' : 'text-black'
                   }`}
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  style={styles.tabular}
                 >
                   {lowStockProducts.length}{' '}
                   <Text className="font-semibold text-[11.5px] text-muted">barang</Text>
@@ -399,7 +366,7 @@ export default function LaporanScreen() {
               </MotionPressable>
             </View>
 
-            {/* Top 5 Barang Terlaris (with Thumbnails + Proportional Bar) */}
+            {/* Top 5 Barang Terlaris */}
             <View className="mb-2.5 flex-row items-center justify-between">
               <Text className="font-extrabold text-[14px] text-black">
                 Top 5 Barang Terlaris
@@ -439,7 +406,7 @@ export default function LaporanScreen() {
                           </Text>
                           <Text
                             className="font-extrabold text-[12.5px] text-black"
-                            style={{ fontVariant: ['tabular-nums'] }}
+                            style={styles.tabular}
                           >
                             {item.totalQty} unit
                           </Text>
@@ -457,7 +424,7 @@ export default function LaporanScreen() {
 
                         <Text
                           className="mt-1 font-medium text-[11px] text-muted"
-                          style={{ fontVariant: ['tabular-nums'] }}
+                          style={styles.tabular}
                         >
                           Omzet {formatRupiah(item.totalRevenue)}
                         </Text>
@@ -495,7 +462,7 @@ export default function LaporanScreen() {
                         <View className="rounded-[7px] bg-red-soft px-2 py-0.5">
                           <Text
                             className="font-bold text-[11px] text-red"
-                            style={{ fontVariant: ['tabular-nums'] }}
+                            style={styles.tabular}
                           >
                             Sisa {prod.stock} / Min {prod.min_stock}
                           </Text>

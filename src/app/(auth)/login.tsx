@@ -29,7 +29,6 @@ export default function LoginScreen() {
 
   // Subtle living breathing motion
   const breatheY = useSharedValue(0);
-  const breatheScale = useSharedValue(1);
 
   // Tagline & bottom CTA staggered entrance
   const textOpacity = useSharedValue(0);
@@ -81,7 +80,7 @@ export default function LoginScreen() {
       withTiming(0, { duration: MOTION_DURATION.contentEnter, easing: EASE_SMOOTH }),
     );
 
-    // Gerak mengambang mikro santai agar logo terasa hidup (4.4 detik/siklus)
+    // Gerak mengambang mikro santai tanpa rekomputasi shadow scale berulang
     breatheY.value = withDelay(
       MOTION_DURATION.logoEnter,
       withRepeat(
@@ -94,21 +93,8 @@ export default function LoginScreen() {
       ),
     );
 
-    breatheScale.value = withDelay(
-      MOTION_DURATION.logoEnter,
-      withRepeat(
-        withSequence(
-          withTiming(1.022, { duration: MOTION_DURATION.breatheHalf, easing: EASE_BREATHE }),
-          withTiming(1, { duration: MOTION_DURATION.breatheHalf, easing: EASE_BREATHE }),
-        ),
-        -1,
-        false,
-      ),
-    );
-
     return () => {
       cancelAnimation(breatheY);
-      cancelAnimation(breatheScale);
     };
   }, [
     reduceMotion,
@@ -120,7 +106,6 @@ export default function LoginScreen() {
     ctaOpacity,
     ctaTranslateY,
     breatheY,
-    breatheScale,
   ]);
 
   // Animasi keluar mulus ke atas saat login berhasil sebelum pindah ke Beranda
@@ -130,7 +115,6 @@ export default function LoginScreen() {
     }
 
     cancelAnimation(breatheY);
-    cancelAnimation(breatheScale);
 
     logoOpacity.value = withTiming(0, {
       duration: MOTION_DURATION.exitSmooth,
@@ -153,7 +137,6 @@ export default function LoginScreen() {
     session,
     reduceMotion,
     breatheY,
-    breatheScale,
     logoOpacity,
     logoTranslateY,
     logoScale,
@@ -167,7 +150,7 @@ export default function LoginScreen() {
     opacity: logoOpacity.value,
     transform: [
       { translateY: logoTranslateY.value + breatheY.value },
-      { scale: logoScale.value * breatheScale.value },
+      { scale: logoScale.value },
     ],
   }));
 
@@ -262,7 +245,7 @@ export default function LoginScreen() {
           <Text className="px-2 text-center font-medium text-[11px] leading-4 text-muted">
             Akses khusus pengelola dan kasir Toko SRC Dimas.
           </Text>
-          <Text className="text-center font-semibold text-[10.5px] text-muted">v0.2.0</Text>
+          <Text className="text-center font-semibold text-[10.5px] text-muted">v0.3.0</Text>
         </Animated.View>
       </View>
     </SafeAreaView>

@@ -1,7 +1,12 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import {
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+  type BarcodeSettings,
+} from 'expo-camera';
 import { useCallback, useEffect, useRef } from 'react';
-import { Modal, Pressable, Text, Vibration, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface CameraBarcodeModalProps {
@@ -13,6 +18,16 @@ interface CameraBarcodeModalProps {
 }
 
 const SCAN_DEBOUNCE_MS = 1200;
+
+const BARCODE_SCANNER_SETTINGS: BarcodeSettings = {
+  barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
+};
+
+const styles = StyleSheet.create({
+  camera: {
+    flex: 1,
+  },
+});
 
 export function CameraBarcodeModal({
   visible,
@@ -90,11 +105,9 @@ export function CameraBarcodeModal({
         ) : (
           <View className="flex-1">
             <CameraView
-              style={{ flex: 1 }}
+              style={styles.camera}
               facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
-              }}
+              barcodeScannerSettings={BARCODE_SCANNER_SETTINGS}
               onBarcodeScanned={handleBarcodeScanned}
             />
 

@@ -1,11 +1,12 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -14,84 +15,29 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotionPressable } from '@/components/common/MotionPressable';
 import { PrintFailureModal } from '@/components/printer/PrintFailureModal';
 import { PrinterPickerModal } from '@/components/printer/PrinterPickerModal';
-import { useAuth } from '@/hooks/useAuth';
+import { useReceiptPrinter } from '@/hooks/useReceiptPrinter';
 import { useSaleDetailQuery, useVoidSaleMutation } from '@/hooks/useSales';
 import { formatDateTime, formatRupiah } from '@/lib/format';
-import { printReceiptBluetooth } from '@/lib/printer';
-import { shareReceiptPdf } from '@/lib/receiptPdf';
-import { usePrinterStore } from '@/store/usePrinterStore';
+
+const styles = StyleSheet.create({
+  tabular: {
+    fontVariant: ['tabular-nums'],
+  },
+  scrollContent: {
+    paddingBottom: 36,
+  },
+});
 
 export default function SaleDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { store } = useAuth();
   const { data: sale, isLoading } = useSaleDetailQuery(id);
   const voidMutation = useVoidSaleMutation();
-
-  const selectedPrinter = usePrinterStore((s) => s.selectedPrinter);
-  const hydratePrinter = usePrinterStore((s) => s.hydrate);
-
-  const [isPrinting, setIsPrinting] = useState(false);
-  const [printError, setPrintError] = useState<string | null>(null);
-  const [printerPickerOpen, setPrinterPickerOpen] = useState(false);
+  const printer = useReceiptPrinter({ successTitle: 'Cetak Ulang Berhasil' });
 
   const [voidModalOpen, setVoidModalOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [voidError, setVoidError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void hydratePrinter();
-  }, [hydratePrinter]);
-
-  const buildStoreInfo = useCallback(
-    () => ({
-      name: store?.name ?? 'Toko Saya',
-      address: store?.address ?? '',
-      phone: store?.phone ?? '',
-      logo_url: store?.logo_url ?? null,
-      receipt_footer: store?.receipt_footer ?? 'Terima kasih telah berbelanja!',
-      paper_size: store?.paper_size ?? (58 as const),
-    }),
-    [store],
-  );
-
-  const handlePrint = async (macOverride?: string) => {
-    if (!sale) return;
-    const mac = macOverride ?? selectedPrinter?.macAddress;
-    if (!mac) {
-      setPrintError('Printer Bluetooth belum dipilih.');
-      return;
-    }
-
-    setIsPrinting(true);
-    setPrintError(null);
-    try {
-      await printReceiptBluetooth(sale, sale.sale_items ?? [], buildStoreInfo(), mac);
-      Alert.alert('Cetak Ulang Berhasil', `Struk ${sale.receipt_number} dikirim ke printer.`);
-    } catch (err) {
-      setPrintError(
-        err instanceof Error ? err.message : 'Gagal mencetak ke printer Bluetooth.',
-      );
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
-  const handleSharePdf = async () => {
-    if (!sale) return;
-    setIsPrinting(true);
-    try {
-      await shareReceiptPdf(sale, sale.sale_items ?? [], buildStoreInfo());
-      setPrintError(null);
-    } catch (err) {
-      Alert.alert(
-        'Gagal Bagikan PDF',
-        err instanceof Error ? err.message : 'Tidak dapat membuat PDF struk.',
-      );
-    } finally {
-      setIsPrinting(false);
-    }
-  };
 
   const handleConfirmVoid = async () => {
     if (!sale) return;
@@ -141,6 +87,7 @@ export default function SaleDetailScreen() {
   }
 
   const isVoid = sale.status === 'void';
+  const receiptPayload = { sale, items: sale.sale_items ?? [] };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -161,7 +108,7 @@ export default function SaleDetailScreen() {
 
       <ScrollView
         className="flex-1 px-[18px]"
-        contentContainerStyle={{ paddingBottom: 36 }}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Digital Receipt Card */}
@@ -183,7 +130,7 @@ export default function SaleDetailScreen() {
               </View>
               <Text
                 className="mt-2 font-extrabold text-[18px] text-black"
-                style={{ fontVariant: ['tabular-nums'] }}
+                style={styles.tabular}
               >
                 {sale.receipt_number}
               </Text>
@@ -222,7 +169,7 @@ export default function SaleDetailScreen() {
 
           {/* Rincian Item */}
           <View className="gap-2.5">
-            {(sale.sale_items ?? []).map((item) => (
+            {receiptPayload.items.map((item) => (
               <View key={item.id} className="flex-row items-center justify-between gap-2">
                 <View className="flex-1">
                   <Text className="font-bold text-[13.5px] text-black">
@@ -230,14 +177,14 @@ export default function SaleDetailScreen() {
                   </Text>
                   <Text
                     className="mt-0.5 font-medium text-[12px] text-muted"
-                    style={{ fontVariant: ['tabular-nums'] }}
+                    style={styles.tabular}
                   >
                     {item.qty} × {formatRupiah(item.sell_price_snapshot)}
                   </Text>
                 </View>
                 <Text
                   className="font-bold text-[13.5px] text-black"
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  style={styles.tabular}
                 >
                   {formatRupiah(item.subtotal)}
                 </Text>
@@ -255,26 +202,20 @@ export default function SaleDetailScreen() {
                 className={`font-extrabold text-[16.5px] ${
                   isVoid ? 'text-muted line-through' : 'text-black'
                 }`}
-                style={{ fontVariant: ['tabular-nums'] }}
+                style={styles.tabular}
               >
                 {formatRupiah(sale.total_amount)}
               </Text>
             </View>
             <View className="flex-row justify-between">
               <Text className="font-medium text-[12.5px] text-muted">Tunai Diterima</Text>
-              <Text
-                className="font-bold text-[12.5px] text-black"
-                style={{ fontVariant: ['tabular-nums'] }}
-              >
+              <Text className="font-bold text-[12.5px] text-black" style={styles.tabular}>
                 {formatRupiah(sale.cash_received)}
               </Text>
             </View>
             <View className="flex-row justify-between">
               <Text className="font-medium text-[12.5px] text-muted">Kembalian</Text>
-              <Text
-                className="font-extrabold text-[13px] text-red"
-                style={{ fontVariant: ['tabular-nums'] }}
-              >
+              <Text className="font-extrabold text-[13px] text-red" style={styles.tabular}>
                 {formatRupiah(sale.change_amount)}
               </Text>
             </View>
@@ -284,11 +225,11 @@ export default function SaleDetailScreen() {
         {/* Actions */}
         <View className="gap-2.5">
           <MotionPressable
-            onPress={() => void handlePrint()}
-            disabled={isPrinting}
+            onPress={() => void printer.printBluetooth(receiptPayload)}
+            disabled={printer.isPrinting}
             className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
           >
-            {isPrinting ? (
+            {printer.isPrinting ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <FontAwesome6 name="print" size={14} color="#FFFFFF" solid />
@@ -297,8 +238,8 @@ export default function SaleDetailScreen() {
           </MotionPressable>
 
           <MotionPressable
-            onPress={() => void handleSharePdf()}
-            disabled={isPrinting}
+            onPress={() => void printer.sharePdf(receiptPayload)}
+            disabled={printer.isPrinting}
             className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
           >
             <FontAwesome6 name="file-pdf" size={14} color="#D91E2A" solid />
@@ -323,81 +264,86 @@ export default function SaleDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Modal Konfirmasi Void (Alasan Wajib — PRD 3.12) */}
-      <Modal
-        visible={voidModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setVoidModalOpen(false)}
-      >
-        <View className="flex-1 items-center justify-center bg-black/50 px-6">
-          <View className="w-full rounded-hero border border-border bg-white p-5">
-            <Text className="font-extrabold text-[17px] text-black">Void Transaksi?</Text>
-            <Text className="mt-1 font-medium text-[12.5px] leading-5 text-muted">
-              Pembatalan hanya dapat dilakukan 1 kali dan tidak dapat dikembalikan (no undo). Stok seluruh barang akan dikembalikan otomatis.
-            </Text>
+      {/* Modal Konfirmasi Void (Lazy-mounted) */}
+      {voidModalOpen ? (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setVoidModalOpen(false)}
+        >
+          <View className="flex-1 items-center justify-center bg-black/50 px-6">
+            <View className="w-full rounded-hero border border-border bg-white p-5">
+              <Text className="font-extrabold text-[17px] text-black">Void Transaksi?</Text>
+              <Text className="mt-1 font-medium text-[12.5px] leading-5 text-muted">
+                Pembatalan hanya dapat dilakukan 1 kali dan tidak dapat dikembalikan (no undo). Stok seluruh barang akan dikembalikan otomatis.
+              </Text>
 
-            <Text className="mb-1.5 mt-4 font-bold text-[12px] text-black">Alasan Void *</Text>
-            <TextInput
-              value={voidReason}
-              onChangeText={(t) => {
-                setVoidReason(t);
-                setVoidError(null);
-              }}
-              placeholder="Contoh: Salah input barang / pembeli batal"
-              placeholderTextColor="#71717A"
-              className="rounded-control bg-surface px-3.5 py-2.5 font-semibold text-[13px] text-black"
-            />
+              <Text className="mb-1.5 mt-4 font-bold text-[12px] text-black">Alasan Void *</Text>
+              <TextInput
+                value={voidReason}
+                onChangeText={(t) => {
+                  setVoidReason(t);
+                  setVoidError(null);
+                }}
+                placeholder="Contoh: Salah input barang / pembeli batal"
+                placeholderTextColor="#71717A"
+                className="rounded-control bg-surface px-3.5 py-2.5 font-semibold text-[13px] text-black"
+              />
 
-            {voidError ? (
-              <Text className="mt-1.5 font-bold text-[12px] text-red">{voidError}</Text>
-            ) : null}
+              {voidError ? (
+                <Text className="mt-1.5 font-bold text-[12px] text-red">{voidError}</Text>
+              ) : null}
 
-            <View className="mt-4 gap-2">
-              <MotionPressable
-                onPress={() => void handleConfirmVoid()}
-                disabled={voidMutation.isPending}
-                className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
-              >
-                {voidMutation.isPending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <FontAwesome6 name="ban" size={13} color="#FFFFFF" solid />
-                )}
-                <Text className="font-extrabold text-[13.5px] text-white">
-                  {voidMutation.isPending ? 'Memproses...' : 'Konfirmasi Void'}
-                </Text>
-              </MotionPressable>
+              <View className="mt-4 gap-2">
+                <MotionPressable
+                  onPress={() => void handleConfirmVoid()}
+                  disabled={voidMutation.isPending}
+                  className="min-h-[46px] flex-row items-center justify-center gap-2 rounded-control bg-red py-3"
+                >
+                  {voidMutation.isPending ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <FontAwesome6 name="ban" size={13} color="#FFFFFF" solid />
+                  )}
+                  <Text className="font-extrabold text-[13.5px] text-white">
+                    {voidMutation.isPending ? 'Memproses...' : 'Konfirmasi Void'}
+                  </Text>
+                </MotionPressable>
 
-              <MotionPressable
-                onPress={() => setVoidModalOpen(false)}
-                className="min-h-[44px] items-center justify-center rounded-control border border-border bg-white py-3"
-              >
-                <Text className="font-bold text-[13px] text-black">Batal</Text>
-              </MotionPressable>
+                <MotionPressable
+                  onPress={() => setVoidModalOpen(false)}
+                  className="min-h-[44px] items-center justify-center rounded-control border border-border bg-white py-3"
+                >
+                  <Text className="font-bold text-[13px] text-black">Batal</Text>
+                </MotionPressable>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      ) : null}
 
-      <PrintFailureModal
-        visible={Boolean(printError)}
-        errorMessage={printError}
-        isBusy={isPrinting}
-        onRetry={() => void handlePrint()}
-        onChoosePrinter={() => {
-          setPrintError(null);
-          setPrinterPickerOpen(true);
-        }}
-        onSharePdf={() => void handleSharePdf()}
-        onClose={() => setPrintError(null)}
-      />
+      {printer.printError ? (
+        <PrintFailureModal
+          visible
+          errorMessage={printer.printError}
+          isBusy={printer.isPrinting}
+          onRetry={() => void printer.printBluetooth(receiptPayload)}
+          onChoosePrinter={printer.openPrinterPicker}
+          onSharePdf={() => void printer.sharePdf(receiptPayload)}
+          onClose={printer.clearPrintError}
+        />
+      ) : null}
 
-      <PrinterPickerModal
-        visible={printerPickerOpen}
-        onClose={() => setPrinterPickerOpen(false)}
-        onSelected={(printer) => void handlePrint(printer.macAddress)}
-      />
+      {printer.printerPickerOpen ? (
+        <PrinterPickerModal
+          visible
+          onClose={printer.closePrinterPicker}
+          onSelected={(selected) =>
+            void printer.printBluetooth(receiptPayload, selected.macAddress)
+          }
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

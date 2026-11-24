@@ -1,7 +1,7 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { memo, useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -11,6 +11,19 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotionPressable } from '@/components/common/MotionPressable';
 import { SPRING_TAB } from '@/lib/motion';
+
+const styles = StyleSheet.create({
+  centerCtaShadow: {
+    shadowColor: '#D91E2A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+});
+
+const SELECTED_A11Y_STATE = { selected: true } as const;
+const EMPTY_A11Y_STATE = {} as const;
 
 interface TabMeta {
   label: string;
@@ -34,7 +47,7 @@ interface AnimatedTabItemProps {
   onLongPress: () => void;
 }
 
-function AnimatedTabItem({
+const AnimatedTabItem = memo(function AnimatedTabItem({
   icon,
   label,
   isFocused,
@@ -65,7 +78,7 @@ function AnimatedTabItem({
       onLongPress={onLongPress}
       scaleTo={0.94}
       accessibilityRole="tab"
-      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityState={isFocused ? SELECTED_A11Y_STATE : EMPTY_A11Y_STATE}
       accessibilityLabel={label}
       className="items-center justify-center gap-1 py-1.5"
     >
@@ -81,7 +94,7 @@ function AnimatedTabItem({
       </Text>
     </MotionPressable>
   );
-}
+});
 
 export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -125,16 +138,10 @@ export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                 onLongPress={onLongPress}
                 scaleTo={0.92}
                 accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityState={isFocused ? SELECTED_A11Y_STATE : EMPTY_A11Y_STATE}
                 accessibilityLabel="Buka Kasir dan Scan Barcode"
                 className="-mt-6 h-[56px] w-[56px] items-center justify-center rounded-full border-[4px] border-white bg-red"
-                style={{
-                  shadowColor: '#D91E2A',
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.28,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
+                style={styles.centerCtaShadow}
               >
                 <FontAwesome6 name={meta.icon} size={20} color="#FFFFFF" solid />
               </MotionPressable>

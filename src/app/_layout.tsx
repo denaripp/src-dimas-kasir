@@ -16,6 +16,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { usePrinterStore } from '@/store/usePrinterStore';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -100,6 +101,10 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   });
+
+  useEffect(() => {
+    void usePrinterStore.getState().hydrate();
+  }, []);
 
   if (!fontsLoaded) {
     return (

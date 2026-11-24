@@ -1,12 +1,13 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -17,9 +18,104 @@ import { ProductThumbnail } from '@/components/common/ProductThumbnail';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { formatRupiah } from '@/lib/format';
+import {
+  countLowStockProducts,
+  extractProductCategories,
+  filterProducts,
+} from '@/lib/productFilters';
 import type { ProductRow } from '@/types/database';
 
 type FilterMode = 'all' | 'low_stock' | `cat:${string}`;
+
+const styles = StyleSheet.create({
+  tabular: {
+    fontVariant: ['tabular-nums'],
+  },
+  chipStrip: {
+    gap: 6,
+  },
+  listContent: {
+    paddingBottom: 28,
+    flexGrow: 1,
+  },
+  rowPressed: {
+    opacity: 0.85,
+  },
+});
+
+const ProductListRow = memo(function ProductListRow({
+  item,
+  isFirst,
+  isLast,
+  onOpenDetail,
+  onOpenStock,
+}: {
+  item: ProductRow;
+  isFirst: boolean;
+  isLast: boolean;
+  onOpenDetail: (id: string) => void;
+  onOpenStock: (id: string) => void;
+}) {
+  const isLowStock = item.stock <= item.min_stock;
+
+  return (
+    <Pressable
+      onPress={() => onOpenDetail(item.id)}
+      style={({ pressed }) => (pressed ? styles.rowPressed : undefined)}
+      className={`flex-row items-center gap-3 border-x border-border bg-white px-3.5 py-3 ${
+        isFirst ? 'rounded-t-card border-t' : ''
+      } ${isLast ? 'rounded-b-card border-b' : 'border-b border-border'}`}
+    >
+      <ProductThumbnail imageUrl={item.image_url} size={52} iconSize={18} />
+
+      <View className="flex-1">
+        <Text className="font-bold text-[13.5px] text-black" numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text className="mt-0.5 font-medium text-[11.5px] text-muted" numberOfLines={1}>
+          {item.category ? `${item.category} • ` : ''}
+          {item.barcode ? item.barcode : 'Tanpa barcode'}
+        </Text>
+        <View className="mt-1.5 flex-row">
+          <View
+            className={`rounded-[7px] px-2 py-0.5 ${
+              isLowStock ? 'bg-red-soft' : 'bg-surface'
+            }`}
+          >
+            <Text
+              className={`text-[10.5px] font-bold ${
+                isLowStock ? 'text-red' : 'text-muted'
+              }`}
+              style={styles.tabular}
+            >
+              {isLowStock ? `Stok ${item.stock} · Menipis` : `Stok ${item.stock}`}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View className="items-end gap-1.5">
+        <Text
+          className="font-extrabold text-[13.5px] text-black"
+          style={styles.tabular}
+        >
+          {formatRupiah(item.sell_price)}
+        </Text>
+        <Pressable
+          onPress={() => onOpenStock(item.id)}
+          hitSlop={6}
+          accessibilityLabel={`Kelola stok ${item.name}`}
+          style={({ pressed }) => (pressed ? styles.rowPressed : undefined)}
+          className="h-7 w-7 items-center justify-center rounded-full bg-surface"
+        >
+          <FontAwesome6 name="plus" size={11} color="#09090B" solid />
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+});
+
+const keyExtractor = (item: ProductRow) => item.id;
 
 export default function BarangScreen() {
   const router = useRouter();
@@ -32,102 +128,73 @@ export default function BarangScreen() {
   } = useProductsQuery(store?.id);
 
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
 
-  const lowStockCount = useMemo(
-    () => products.filter((p) => p.stock <= p.min_stock).length,
-    [products],
+  const lowStockCount = useMemo(() => countLowStockProducts(products), [products]);
+  const categories = useMemo(() => extractProductCategories(products), [products]);
+
+  const filteredProducts = useMemo(
+    () =>
+      filterProducts(products, {
+        search: deferredSearch,
+        lowStockOnly: filterMode === 'low_stock',
+        category: filterMode.startsWith('cat:') ? filterMode.slice(4) : undefined,
+      }),
+    [products, deferredSearch, filterMode],
   );
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    products.forEach((p) => {
-      const cat = p.category.trim();
-      if (cat) set.add(cat);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [products]);
+  const handleOpenDetail = useCallback(
+    (id: string) => router.push(`/barang/${id}`),
+    [router],
+  );
+  const handleOpenStock = useCallback(
+    (id: string) => router.push(`/stok/${id}`),
+    [router],
+  );
 
-  const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return products.filter((p) => {
-      if (filterMode === 'low_stock' && p.stock > p.min_stock) {
-        return false;
-      }
-      if (filterMode.startsWith('cat:')) {
-        const targetCat = filterMode.slice(4);
-        if (p.category.trim() !== targetCat) {
-          return false;
-        }
-      }
-      if (!q) return true;
-      return (
-        p.name.toLowerCase().includes(q) ||
-        (p.barcode ?? '').toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q)
-      );
-    });
-  }, [products, search, filterMode]);
+  const totalFiltered = filteredProducts.length;
+  const renderItem = useCallback(
+    ({ item, index }: { item: ProductRow; index: number }) => (
+      <ProductListRow
+        item={item}
+        isFirst={index === 0}
+        isLast={index === totalFiltered - 1}
+        onOpenDetail={handleOpenDetail}
+        onOpenStock={handleOpenStock}
+      />
+    ),
+    [totalFiltered, handleOpenDetail, handleOpenStock],
+  );
 
-  const renderItem = ({ item, index }: { item: ProductRow; index: number }) => {
-    const isLowStock = item.stock <= item.min_stock;
-    const isFirst = index === 0;
-    const isLast = index === filteredProducts.length - 1;
-
-    return (
-      <MotionPressable
-        onPress={() => router.push(`/barang/${item.id}`)}
-        scaleTo={0.985}
-        className={`flex-row items-center gap-3 border-x border-border bg-white px-3.5 py-3 ${
-          isFirst ? 'rounded-t-card border-t' : ''
-        } ${isLast ? 'rounded-b-card border-b' : 'border-b border-border'}`}
-      >
-        <ProductThumbnail imageUrl={item.image_url} size={52} iconSize={18} />
-
-        <View className="flex-1">
-          <Text className="font-bold text-[13.5px] text-black" numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text className="mt-0.5 font-medium text-[11.5px] text-muted" numberOfLines={1}>
-            {item.category ? `${item.category} • ` : ''}
-            {item.barcode ? item.barcode : 'Tanpa barcode'}
-          </Text>
-          <View className="mt-1.5 flex-row">
-            <View
-              className={`rounded-[7px] px-2 py-0.5 ${
-                isLowStock ? 'bg-red-soft' : 'bg-surface'
-              }`}
-            >
-              <Text
-                className={`text-[10.5px] font-bold ${
-                  isLowStock ? 'text-red' : 'text-muted'
-                }`}
-                style={{ fontVariant: ['tabular-nums'] }}
-              >
-                {isLowStock ? `Stok ${item.stock} · Menipis` : `Stok ${item.stock}`}
-              </Text>
-            </View>
-          </View>
+  const emptyComponent = useMemo(
+    () => (
+      <View className="mt-6 items-center rounded-card border border-border bg-white p-6">
+        <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-red-soft">
+          <FontAwesome6 name="cube" size={18} color="#D91E2A" solid />
         </View>
-
-        <View className="items-end gap-1.5">
-          <Text
-            className="font-extrabold text-[13.5px] text-black"
-            style={{ fontVariant: ['tabular-nums'] }}
-          >
-            {formatRupiah(item.sell_price)}
-          </Text>
+        <Text className="text-center font-extrabold text-[15px] text-black">
+          {products.length === 0 ? 'Belum Ada Barang' : 'Barang Tidak Ditemukan'}
+        </Text>
+        <Text className="mt-1 text-center font-medium text-[12px] leading-4 text-muted">
+          {products.length === 0
+            ? 'Tambah barang satu per satu atau impor sekaligus lewat file CSV.'
+            : 'Coba ubah kata kunci pencarian atau filter kategori.'}
+        </Text>
+        {products.length === 0 ? (
           <MotionPressable
-            onPress={() => router.push(`/stok/${item.id}`)}
-            accessibilityLabel={`Kelola stok ${item.name}`}
-            className="h-7 w-7 items-center justify-center rounded-full bg-surface"
+            onPress={() => router.push('/barang/new')}
+            className="mt-4 rounded-control bg-red px-5 py-3"
           >
-            <FontAwesome6 name="plus" size={11} color="#09090B" solid />
+            <Text className="font-extrabold text-[13px] text-white">
+              Tambah Barang Pertama
+            </Text>
           </MotionPressable>
-        </View>
-      </MotionPressable>
-    );
-  };
+        ) : null}
+      </View>
+    ),
+    [products.length, router],
+  );
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-white">
@@ -173,7 +240,11 @@ export default function BarangScreen() {
             returnKeyType="search"
           />
           {search.length > 0 ? (
-            <Pressable onPress={() => setSearch('')} accessibilityLabel="Hapus pencarian" hitSlop={8}>
+            <Pressable
+              onPress={() => setSearch('')}
+              accessibilityLabel="Hapus pencarian"
+              hitSlop={8}
+            >
               <FontAwesome6 name="xmark" size={14} color="#71717A" solid />
             </Pressable>
           ) : null}
@@ -184,9 +255,9 @@ export default function BarangScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 6 }}
+            contentContainerStyle={styles.chipStrip}
           >
-            <MotionPressable
+            <Pressable
               onPress={() => setFilterMode('all')}
               className={`rounded-chip border px-3 py-1.5 ${
                 filterMode === 'all' ? 'border-black bg-black' : 'border-border bg-white'
@@ -199,9 +270,9 @@ export default function BarangScreen() {
               >
                 Semua ({products.length})
               </Text>
-            </MotionPressable>
+            </Pressable>
 
-            <MotionPressable
+            <Pressable
               onPress={() => setFilterMode('low_stock')}
               className={`rounded-chip border px-3 py-1.5 ${
                 filterMode === 'low_stock' ? 'border-red bg-red' : 'border-border bg-white'
@@ -216,13 +287,13 @@ export default function BarangScreen() {
               >
                 Menipis ({lowStockCount})
               </Text>
-            </MotionPressable>
+            </Pressable>
 
             {categories.map((cat) => {
               const key: FilterMode = `cat:${cat}`;
               const active = filterMode === key;
               return (
-                <MotionPressable
+                <Pressable
                   key={cat}
                   onPress={() => setFilterMode(key)}
                   className={`rounded-chip border px-3 py-1.5 ${
@@ -236,7 +307,7 @@ export default function BarangScreen() {
                   >
                     {cat}
                   </Text>
-                </MotionPressable>
+                </Pressable>
               );
             })}
           </ScrollView>
@@ -250,10 +321,15 @@ export default function BarangScreen() {
         ) : (
           <FlatList
             data={filteredProducts}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 28, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching}
@@ -262,31 +338,7 @@ export default function BarangScreen() {
                 tintColor="#D91E2A"
               />
             }
-            ListEmptyComponent={
-              <View className="mt-6 items-center rounded-card border border-border bg-white p-6">
-                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-red-soft">
-                  <FontAwesome6 name="cube" size={18} color="#D91E2A" solid />
-                </View>
-                <Text className="text-center font-extrabold text-[15px] text-black">
-                  {products.length === 0 ? 'Belum Ada Barang' : 'Barang Tidak Ditemukan'}
-                </Text>
-                <Text className="mt-1 text-center font-medium text-[12px] leading-4 text-muted">
-                  {products.length === 0
-                    ? 'Tambah barang satu per satu atau impor sekaligus lewat file CSV.'
-                    : 'Coba ubah kata kunci pencarian atau filter kategori.'}
-                </Text>
-                {products.length === 0 ? (
-                  <MotionPressable
-                    onPress={() => router.push('/barang/new')}
-                    className="mt-4 rounded-control bg-red px-5 py-3"
-                  >
-                    <Text className="font-extrabold text-[13px] text-white">
-                      Tambah Barang Pertama
-                    </Text>
-                  </MotionPressable>
-                ) : null}
-              </View>
-            }
+            ListEmptyComponent={emptyComponent}
           />
         )}
       </View>
