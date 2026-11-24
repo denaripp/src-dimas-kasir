@@ -1,14 +1,14 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { buildReceiptHtml, type ReceiptStoreInfo } from '@/lib/receiptFormatter';
+import { buildReceiptHtml, type ReceiptRenderOptions } from '@/lib/receiptFormatter';
 import type { SaleItemRow, SaleRow } from '@/types/database';
 
 export async function shareReceiptPdf(
   sale: SaleRow,
   items: SaleItemRow[],
-  store: ReceiptStoreInfo,
+  options?: ReceiptRenderOptions,
 ): Promise<string> {
-  const html = buildReceiptHtml(sale, items, store);
+  const html = buildReceiptHtml(sale, items, options);
   const { uri } = await Print.printToFileAsync({ html });
 
   const canShare = await Sharing.isAvailableAsync();

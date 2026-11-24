@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { toUserFriendlyError } from '@/lib/errorMessage';
 import { printReceiptBluetooth } from '@/lib/printer';
-import type { ReceiptStoreInfo } from '@/lib/receiptFormatter';
+import type { ReceiptRenderOptions } from '@/lib/receiptFormatter';
 import { shareReceiptPdf } from '@/lib/receiptPdf';
 import { usePrinterStore } from '@/store/usePrinterStore';
 import type { SaleItemRow, SaleRow } from '@/types/database';
@@ -13,7 +13,10 @@ export interface PrintableReceipt {
   items: SaleItemRow[];
 }
 
-export function useReceiptPrinter(options?: { successTitle?: string }) {
+export function useReceiptPrinter(options?: {
+  successTitle?: string;
+  isReprint?: boolean;
+}) {
   const { store } = useAuth();
   const selectedPrinter = usePrinterStore((s) => s.selectedPrinter);
 
@@ -21,16 +24,13 @@ export function useReceiptPrinter(options?: { successTitle?: string }) {
   const [printError, setPrintError] = useState<string | null>(null);
   const [printerPickerOpen, setPrinterPickerOpen] = useState(false);
 
-  const buildStoreInfo = useCallback(
-    (): ReceiptStoreInfo => ({
-      name: store?.name ?? 'Toko Saya',
-      address: store?.address ?? '',
-      phone: store?.phone ?? '',
-      logo_url: store?.logo_url ?? null,
-      receipt_footer: store?.receipt_footer ?? 'Terima kasih telah berbelanja!',
-      paper_size: store?.paper_size ?? (58 as const),
+  const buildRenderOptions = useCallback(
+    (): ReceiptRenderOptions => ({
+      paper_size: store?.paper_size ?? 58,
+      isReprint: options?.isReprint ?? false,
+      printedAt: new Date(),
     }),
-    [store],
+    [store?.paper_size, options?.isReprint],
   );
 
   const printBluetooth = useCallback(
@@ -47,7 +47,7 @@ export function useReceiptPrinter(options?: { successTitle?: string }) {
         await printReceiptBluetooth(
           receipt.sale,
           receipt.items,
-          buildStoreInfo(),
+          buildRenderOptions(),
           mac,
         );
         Alert.alert(
@@ -65,14 +65,14 @@ export function useReceiptPrinter(options?: { successTitle?: string }) {
         setIsPrinting(false);
       }
     },
-    [selectedPrinter, buildStoreInfo, options?.successTitle],
+    [selectedPrinter, buildRenderOptions, options?.successTitle],
   );
 
   const sharePdf = useCallback(
     async (receipt: PrintableReceipt) => {
       setIsPrinting(true);
       try {
-        await shareReceiptPdf(receipt.sale, receipt.items, buildStoreInfo());
+        await shareReceiptPdf(receipt.sale, receipt.items, buildRenderOptions());
         setPrintError(null);
       } catch (err) {
         Alert.alert(
@@ -83,7 +83,7 @@ export function useReceiptPrinter(options?: { successTitle?: string }) {
         setIsPrinting(false);
       }
     },
-    [buildStoreInfo],
+    [buildRenderOptions],
   );
 
   const clearPrintError = useCallback(() => setPrintError(null), []);

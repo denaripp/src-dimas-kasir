@@ -30,8 +30,8 @@ export function PrinterSettingsModal({ visible, onClose }: PrinterSettingsModalP
     try {
       await printTestReceiptBluetooth(
         {
-          name: store?.name || 'SRC Dimas',
           paper_size: store?.paper_size ?? 58,
+          printedAt: new Date(),
         },
         selectedPrinter.macAddress,
       );

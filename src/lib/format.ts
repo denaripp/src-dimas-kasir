@@ -5,6 +5,83 @@ export interface UtcDateRange {
   endIso: string;
 }
 
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+const ID_MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+] as const;
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
+/**
+ * Mengurai timestamp (termasuk variasi format timestamptz PostgreSQL seperti
+ * spasi pemisah, 6 digit mikrodetik, atau offset 2 digit +00) secara aman
+ * di semua engine JS termasuk Android Hermes.
+ */
+export function parseTimestampSafe(
+  input: Date | string | number | null | undefined,
+): Date | null {
+  if (input === null || input === undefined) {
+    return null;
+  }
+  if (input instanceof Date) {
+    return Number.isNaN(input.getTime()) ? null : input;
+  }
+  if (typeof input === 'number') {
+    if (!Number.isFinite(input)) return null;
+    const d = new Date(input);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  let normalized = input.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  // PostgreSQL timestamptz text format: "YYYY-MM-DD HH:mm:ss.123456+00" -> ISO-8601
+  normalized = normalized.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/, '$1T$2');
+  // Potong mikrodetik (>3 digit) ke milidetik (3 digit) untuk kompatibilitas Hermes
+  normalized = normalized.replace(/(\.\d{3})\d+/, '$1');
+  // Normalisasi offset 2 digit (+00) atau 4 digit tanpa titik dua (+0700) -> +00:00
+  normalized = normalized.replace(/([+-]\d{2})$/, '$1:00');
+  normalized = normalized.replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+
+  // Jika ISO datetime tanpa penanda timezone, perlakukan sebagai UTC (standar server Supabase)
+  if (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(normalized) &&
+    !/(?:Z|[+-]\d{2}:\d{2})$/i.test(normalized)
+  ) {
+    normalized = `${normalized}Z`;
+  }
+
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getWibDateParts(date: Date) {
+  const wib = new Date(date.getTime() + WIB_OFFSET_MS);
+  return {
+    year: wib.getUTCFullYear(),
+    month: wib.getUTCMonth() + 1,
+    day: wib.getUTCDate(),
+    hours: wib.getUTCHours(),
+    minutes: wib.getUTCMinutes(),
+    seconds: wib.getUTCSeconds(),
+  };
+}
+
 /**
  * Format bilangan bulat Rupiah ketat sesuai PRD:
  * Rp15.000 (tanpa spasi setelah Rp, pemisah titik ribuan, tanpa desimal ,00).
@@ -35,8 +112,8 @@ export function formatReceiptNumber(localDateKey: string, sequence: number): str
  */
 export function formatLocalDateKey(date: Date = new Date()): string {
   const y = date.getFullYear().toString();
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
+  const m = pad2(date.getMonth() + 1);
+  const d = pad2(date.getDate());
   return `${y}${m}${d}`;
 }
 
@@ -45,41 +122,46 @@ export function formatLocalDateKey(date: Date = new Date()): string {
  */
 export function formatIsoDateLocal(date: Date = new Date()): string {
   const y = date.getFullYear().toString();
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
+  const m = pad2(date.getMonth() + 1);
+  const d = pad2(date.getDate());
   return `${y}-${m}-${d}`;
 }
 
-const ID_DATE_FORMATTER = new Intl.DateTimeFormat('id-ID', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-});
-
 /**
- * Format tanggal dan jam lokal perangkat (contoh: 23 Nov 2026, 19:42).
+ * Format tanggal dan jam struk dalam WIB (UTC+7) secara deterministik:
+ * DD/MM/YYYY HH:mm:ss (contoh: 24/11/2026 18:45:12).
+ * Jika input kosong/tidak valid, fallback otomatis ke waktu sekarang (real-time).
  */
-export function formatDateTime(input: Date | string | number): string {
-  const date = input instanceof Date ? input : new Date(input);
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-  const datePart = ID_DATE_FORMATTER.format(date);
-  const timePart = formatTimeOnly(date);
-  return `${datePart}, ${timePart}`;
+export function formatReceiptDateTime(
+  input?: Date | string | number | null,
+): string {
+  const date = parseTimestampSafe(input) ?? new Date();
+  const { day, month, year, hours, minutes, seconds } = getWibDateParts(date);
+  return `${pad2(day)}/${pad2(month)}/${year} ${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
 }
 
 /**
- * Format jam lokal perangkat (HH:mm).
+ * Format tanggal dan jam WIB (contoh: 23 Nov 2026, 19:42).
+ */
+export function formatDateTime(input: Date | string | number): string {
+  const date = parseTimestampSafe(input);
+  if (!date) {
+    return '-';
+  }
+  const { day, month, year, hours, minutes } = getWibDateParts(date);
+  return `${pad2(day)} ${ID_MONTHS_SHORT[month - 1]} ${year}, ${pad2(hours)}:${pad2(minutes)}`;
+}
+
+/**
+ * Format jam WIB (HH:mm).
  */
 export function formatTimeOnly(input: Date | string | number): string {
-  const date = input instanceof Date ? input : new Date(input);
-  if (Number.isNaN(date.getTime())) {
+  const date = parseTimestampSafe(input);
+  if (!date) {
     return '--:--';
   }
-  const hh = date.getHours().toString().padStart(2, '0');
-  const mm = date.getMinutes().toString().padStart(2, '0');
-  return `${hh}:${mm}`;
+  const { hours, minutes } = getWibDateParts(date);
+  return `${pad2(hours)}:${pad2(minutes)}`;
 }
 
 /**

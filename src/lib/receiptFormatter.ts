@@ -1,4 +1,5 @@
-import { formatDateTime, formatRupiah } from '@/lib/format';
+import { formatReceiptDateTime, formatRupiah } from '@/lib/format';
+import { STORE_BRAND } from '@/lib/storeBrand';
 import type { PaperSize, SaleItemRow, SaleRow, StoreRow } from '@/types/database';
 
 export type ReceiptStoreInfo = Pick<
@@ -6,12 +7,18 @@ export type ReceiptStoreInfo = Pick<
   'name' | 'address' | 'phone' | 'logo_url' | 'receipt_footer' | 'paper_size'
 >;
 
+export interface ReceiptRenderOptions {
+  paper_size?: PaperSize;
+  isReprint?: boolean;
+  printedAt?: Date | string | number;
+}
+
 export function getReceiptLineWidth(paperSize: PaperSize): number {
   return paperSize === 80 ? 48 : 32;
 }
 
 export function formatTwoColumns(left: string, right: string, width: number): string {
-  const cleanLeft = left.trim();
+  const cleanLeft = left.trimEnd();
   const cleanRight = right.trim();
   const maxLeft = Math.max(1, width - cleanRight.length - 1);
   const clippedLeft =
@@ -41,40 +48,47 @@ export function isTrustedLogoUrl(url: string | null | undefined): url is string 
   return typeof url === 'string' && TRUSTED_LOGO_URL_REGEX.test(url.trim());
 }
 
+/**
+ * Menghasilkan teks struk thermal ESC/POS (58mm / 80mm).
+ * Identitas toko dikunci permanen ke STORE_BRAND ("TOKO SRC DIMAS") — tidak mengikuti
+ * profil akun Google maupun kolom metadata profil di database.
+ */
 export function buildEscPosReceiptText(
   sale: SaleRow,
   items: SaleItemRow[],
-  store: ReceiptStoreInfo,
+  options?: ReceiptRenderOptions | ReceiptStoreInfo,
 ): string {
-  const width = getReceiptLineWidth(store.paper_size);
+  const paperSize: PaperSize = options?.paper_size === 80 ? 80 : 58;
+  const isReprint = 'isReprint' in (options ?? {}) ? Boolean((options as ReceiptRenderOptions).isReprint) : false;
+  const printedAt = 'printedAt' in (options ?? {}) ? (options as ReceiptRenderOptions).printedAt : undefined;
+
+  const width = getReceiptLineWidth(paperSize);
   const doubleDivider = '='.repeat(width);
   const singleDivider = '-'.repeat(width);
   const lines: string[] = [];
 
-  const rawStoreName = sanitizeEscPosText(store.name) || 'TOKO SRC DIMAS';
-  const safeName = rawStoreName.toUpperCase();
-  const safeAddress =
-    sanitizeEscPosText(store.address) || 'Jl. Raya Belawa Wangkelang, Desa Wangkelang';
-  const safePhone = sanitizeEscPosText(store.phone);
-
   const totalDistinctItems = items.length;
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
 
-  // 1. Header Toko
+  // 1. Header Toko (dikunci permanen ke TOKO SRC DIMAS)
   lines.push(doubleDivider);
-  lines.push(`<CB>${safeName}</CB>`);
-  if (safeAddress) {
-    lines.push(`<C>${safeAddress}</C>`);
-  }
-  if (safePhone) {
-    lines.push(`<C>Telp: ${safePhone}</C>`);
+  lines.push(`<CB>${STORE_BRAND.nameUpper}</CB>`);
+  if (paperSize === 80) {
+    lines.push(`<C>${STORE_BRAND.address}</C>`);
+  } else {
+    for (const addrLine of STORE_BRAND.addressLines58) {
+      lines.push(`<C>${addrLine}</C>`);
+    }
   }
   lines.push(doubleDivider);
 
-  // 2. Metadata Transaksi
+  // 2. Metadata Transaksi (WIB real-time DD/MM/YYYY HH:mm:ss)
   lines.push(`No. Struk : ${sanitizeEscPosText(sale.receipt_number)}`);
-  lines.push(`Tanggal   : ${formatDateTime(sale.created_at)}`);
-  lines.push(`Kasir     : ${rawStoreName}`);
+  lines.push(`Tanggal   : ${formatReceiptDateTime(sale.created_at)}`);
+  if (isReprint) {
+    lines.push(`Dicetak   : ${formatReceiptDateTime(printedAt ?? new Date())}`);
+  }
+  lines.push(`Kasir     : ${STORE_BRAND.cashierName}`);
 
   // 3. Status VOID jika ada
   if (sale.status === 'void') {
@@ -108,13 +122,9 @@ export function buildEscPosReceiptText(
   lines.push(formatTwoColumns('KEMBALI    :', formatRupiah(sale.change_amount), width));
   lines.push(doubleDivider);
 
-  // 6. Footer Toko
-  const customFooter = sanitizeEscPosText(store.receipt_footer);
-  if (customFooter && customFooter !== 'Terima kasih telah berbelanja!') {
-    lines.push(`<C>${customFooter}</C>`);
-  } else {
-    lines.push('<C>Terima Kasih Telah Berbelanja</C>');
-    lines.push(`<C>di ${safeName}</C>`);
+  // 6. Footer Toko (dikunci permanen ke Toko SRC DIMAS)
+  for (const footerLine of STORE_BRAND.footerLines) {
+    lines.push(`<C>${footerLine}</C>`);
   }
   lines.push(doubleDivider);
 
@@ -127,24 +137,28 @@ export function buildEscPosReceiptText(
 }
 
 export function buildTestReceiptText(
-  store: Pick<StoreRow, 'name' | 'paper_size'> & { address?: string | null },
+  options?: ReceiptRenderOptions | (Pick<StoreRow, 'paper_size'> & { name?: string; address?: string | null }),
 ): string {
-  const width = getReceiptLineWidth(store.paper_size);
+  const paperSize: PaperSize = options?.paper_size === 80 ? 80 : 58;
+  const printedAt = 'printedAt' in (options ?? {}) ? (options as ReceiptRenderOptions).printedAt : undefined;
+  const width = getReceiptLineWidth(paperSize);
   const doubleDivider = '='.repeat(width);
   const singleDivider = '-'.repeat(width);
-  const safeName = (sanitizeEscPosText(store.name) || 'TOKO SRC DIMAS').toUpperCase();
-  const safeAddress =
-    sanitizeEscPosText(store.address) || 'Jl. Raya Belawa Wangkelang, Desa Wangkelang';
+
+  const addressLines =
+    paperSize === 80
+      ? [`<C>${STORE_BRAND.address}</C>`]
+      : STORE_BRAND.addressLines58.map((line) => `<C>${line}</C>`);
 
   return [
     doubleDivider,
-    `<CB>${safeName}</CB>`,
-    `<C>${safeAddress}</C>`,
-    `<C>TES CETAK PRINTER ${store.paper_size}mm</C>`,
+    `<CB>${STORE_BRAND.nameUpper}</CB>`,
+    ...addressLines,
+    `<C>TES CETAK PRINTER ${paperSize}mm</C>`,
     doubleDivider,
     formatTwoColumns('Lebar Baris :', `${width} karakter`, width),
     formatTwoColumns('Format Uang :', formatRupiah(15000), width),
-    formatTwoColumns('Waktu       :', formatDateTime(new Date()), width),
+    `Waktu       : ${formatReceiptDateTime(printedAt ?? new Date())}`,
     singleDivider,
     '<C>Printer Terhubung & Siap Pakai</C>',
     doubleDivider,
@@ -163,17 +177,19 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * Menghasilkan HTML struk untuk ekspor PDF / WhatsApp.
+ * Identitas toko dikunci permanen ke STORE_BRAND ("TOKO SRC DIMAS").
+ */
 export function buildReceiptHtml(
   sale: SaleRow,
   items: SaleItemRow[],
-  store: ReceiptStoreInfo,
+  options?: ReceiptRenderOptions | ReceiptStoreInfo,
 ): string {
-  const paperMm = store.paper_size === 80 ? '80mm' : '58mm';
-  const rawStoreName = store.name.trim() || 'Toko SRC Dimas';
-  const storeNameUpper = rawStoreName.toUpperCase();
-  const storeAddress =
-    store.address.trim() || 'Jl. Raya Belawa Wangkelang, Desa Wangkelang';
-  const storePhone = store.phone.trim();
+  const paperSize: PaperSize = options?.paper_size === 80 ? 80 : 58;
+  const paperMm = paperSize === 80 ? '80mm' : '58mm';
+  const isReprint = 'isReprint' in (options ?? {}) ? Boolean((options as ReceiptRenderOptions).isReprint) : false;
+  const printedAt = 'printedAt' in (options ?? {}) ? (options as ReceiptRenderOptions).printedAt : undefined;
 
   const totalDistinctItems = items.length;
   const totalUnits = items.reduce((sum, item) => sum + item.qty, 0);
@@ -192,10 +208,6 @@ export function buildReceiptHtml(
     )
     .join('');
 
-  const logoHtml = isTrustedLogoUrl(store.logo_url)
-    ? `<div class="center"><img class="logo" src="${escapeHtml(store.logo_url)}" alt="Logo Toko" /></div>`
-    : '';
-
   const voidBannerHtml =
     sale.status === 'void'
       ? `
@@ -206,16 +218,13 @@ export function buildReceiptHtml(
       `
       : '';
 
-  const customFooter = store.receipt_footer.trim();
-  const footerHtml =
-    customFooter && customFooter !== 'Terima kasih telah berbelanja!'
-      ? `<div class="footer">${escapeHtml(customFooter)}</div>`
-      : `
-        <div class="footer">
-          <div>Terima Kasih Telah Berbelanja</div>
-          <div>di ${escapeHtml(storeNameUpper)}</div>
-        </div>
-      `;
+  const reprintRowHtml = isReprint
+    ? `<div class="meta-row">Dicetak   : ${escapeHtml(formatReceiptDateTime(printedAt ?? new Date()))}</div>`
+    : '';
+
+  const footerLinesHtml = STORE_BRAND.footerLines
+    .map((line) => `<div>${escapeHtml(line)}</div>`)
+    .join('');
 
   return `<!DOCTYPE html>
 <html lang="id">
@@ -235,13 +244,12 @@ export function buildReceiptHtml(
       line-height: 1.35;
     }
     .center { text-align: center; }
-    .logo { max-width: 64px; max-height: 64px; object-fit: contain; margin-bottom: 6px; }
     .store-name { font-size: 14.5px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px; }
     .store-meta { font-size: 11px; color: #27272A; }
     .double-divider { border-top: 2px solid #09090B; margin: 6px 0; }
     .single-divider { border-top: 1px dashed #09090B; margin: 6px 0; }
     .row { display: flex; justify-content: space-between; gap: 8px; }
-    .meta-row { font-size: 11px; margin-bottom: 2px; }
+    .meta-row { font-size: 11px; margin-bottom: 2px; white-space: pre; }
     .item { margin-bottom: 5px; }
     .item-name { font-weight: 700; font-size: 11.5px; }
     .item-detail { font-size: 11px; }
@@ -262,18 +270,17 @@ export function buildReceiptHtml(
   </style>
 </head>
 <body>
-  ${logoHtml}
   <div class="double-divider"></div>
   <div class="center">
-    <div class="store-name">${escapeHtml(storeNameUpper)}</div>
-    <div class="store-meta">${escapeHtml(storeAddress)}</div>
-    ${storePhone ? `<div class="store-meta">Telp: ${escapeHtml(storePhone)}</div>` : ''}
+    <div class="store-name">${escapeHtml(STORE_BRAND.nameUpper)}</div>
+    <div class="store-meta">${escapeHtml(STORE_BRAND.address)}</div>
   </div>
   <div class="double-divider"></div>
 
   <div class="meta-row">No. Struk : <strong>${escapeHtml(sale.receipt_number)}</strong></div>
-  <div class="meta-row">Tanggal   : ${escapeHtml(formatDateTime(sale.created_at))}</div>
-  <div class="meta-row">Kasir     : ${escapeHtml(rawStoreName)}</div>
+  <div class="meta-row">Tanggal   : ${escapeHtml(formatReceiptDateTime(sale.created_at))}</div>
+  ${reprintRowHtml}
+  <div class="meta-row">Kasir     : ${escapeHtml(STORE_BRAND.cashierName)}</div>
 
   ${voidBannerHtml}
 
@@ -290,7 +297,7 @@ export function buildReceiptHtml(
 
   <div class="double-divider"></div>
 
-  ${footerHtml}
+  <div class="footer">${footerLinesHtml}</div>
 
   <div class="double-divider"></div>
 </body>

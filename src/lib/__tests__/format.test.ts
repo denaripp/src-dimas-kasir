@@ -3,11 +3,13 @@ import {
   formatDateTime,
   formatIsoDateLocal,
   formatLocalDateKey,
+  formatReceiptDateTime,
   formatReceiptNumber,
   formatRupiah,
   formatTimeOnly,
   getLocalDayRangeUtc,
   getLocalPeriodRangeUtc,
+  parseTimestampSafe,
 } from '../format';
 
 describe('formatRupiah', () => {
@@ -33,13 +35,47 @@ describe('formatReceiptNumber', () => {
   });
 });
 
+describe('parseTimestampSafe & formatReceiptDateTime (WIB UTC+7)', () => {
+  test('mengurai berbagai format timestamptz PostgreSQL secara aman', () => {
+    const isoMicro = parseTimestampSafe('2026-11-24T11:45:12.123456+00:00');
+    const pgSpaceShortOffset = parseTimestampSafe('2026-11-24 11:45:12.987654+00');
+    const isoNoTz = parseTimestampSafe('2026-11-24T11:45:12');
+
+    expect(isoMicro !== null).toBe(true);
+    expect(pgSpaceShortOffset !== null).toBe(true);
+    expect(isoNoTz !== null).toBe(true);
+    expect(parseTimestampSafe('invalid')).toBe(null);
+    expect(parseTimestampSafe('')).toBe(null);
+    expect(parseTimestampSafe(null)).toBe(null);
+  });
+
+  test('formatReceiptDateTime selalu mengonversi UTC ke WIB (UTC+7) format DD/MM/YYYY HH:mm:ss', () => {
+    // 11:45:12 UTC = 18:45:12 WIB
+    expect(formatReceiptDateTime('2026-11-24T11:45:12.123456+00:00')).toBe(
+      '24/11/2026 18:45:12',
+    );
+    expect(formatReceiptDateTime('2026-11-24 11:45:12.987654+00')).toBe(
+      '24/11/2026 18:45:12',
+    );
+    // Pergantian hari UTC -> WIB: 23 Nov 18:30:05 UTC = 24 Nov 01:30:05 WIB
+    expect(formatReceiptDateTime('2026-11-23T18:30:05.000Z')).toBe(
+      '24/11/2026 01:30:05',
+    );
+  });
+
+  test('formatReceiptDateTime fallback ke waktu real-time sekarang jika input kosong/invalid', () => {
+    const formatted = formatReceiptDateTime(null);
+    expect(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/.test(formatted)).toBe(true);
+  });
+});
+
 describe('format tanggal & rentang zona waktu lokal', () => {
   test('formatLocalDateKey, formatIsoDateLocal, formatTimeOnly, formatDateTime', () => {
-    const sample = new Date(2026, 10, 23, 19, 42, 0);
-    expect(formatLocalDateKey(sample)).toBe('20261123');
-    expect(formatIsoDateLocal(sample)).toBe('2026-11-23');
+    const sample = new Date('2026-11-23T12:42:00.000Z'); // 19:42 WIB
+    expect(formatLocalDateKey(new Date(2026, 10, 23, 19, 42, 0))).toBe('20261123');
+    expect(formatIsoDateLocal(new Date(2026, 10, 23, 19, 42, 0))).toBe('2026-11-23');
     expect(formatTimeOnly(sample)).toBe('19:42');
-    expect(formatDateTime(sample)).toContain('19:42');
+    expect(formatDateTime(sample)).toBe('23 Nov 2026, 19:42');
     expect(formatDateTime('invalid')).toBe('-');
   });
 

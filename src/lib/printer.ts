@@ -2,8 +2,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import {
   buildEscPosReceiptText,
   buildTestReceiptText,
-  isTrustedLogoUrl,
-  type ReceiptStoreInfo,
+  type ReceiptRenderOptions,
 } from '@/lib/receiptFormatter';
 import type { SaleItemRow, SaleRow } from '@/types/database';
 
@@ -99,7 +98,7 @@ export async function connectPrinter(macAddress: string): Promise<void> {
 export async function printReceiptBluetooth(
   sale: SaleRow,
   items: SaleItemRow[],
-  store: ReceiptStoreInfo,
+  options: ReceiptRenderOptions,
   macAddress: string,
 ): Promise<void> {
   if (!macAddress) {
@@ -108,25 +107,12 @@ export async function printReceiptBluetooth(
 
   await connectPrinter(macAddress);
   const BLEPrinter = getBlePrinterModule();
-
-  if (isTrustedLogoUrl(store.logo_url) && BLEPrinter.printImage) {
-    try {
-      BLEPrinter.printImage(store.logo_url, {
-        imageWidth: 160,
-        imageHeight: 160,
-        printerWidthType: store.paper_size,
-      });
-    } catch {
-      // Gagal cetak logo tidak menghentikan cetak teks struk
-    }
-  }
-
-  const payload = buildEscPosReceiptText(sale, items, store);
+  const payload = buildEscPosReceiptText(sale, items, options);
   BLEPrinter.printBill(payload, { beep: true, cut: true, tailingLine: true });
 }
 
 export async function printTestReceiptBluetooth(
-  store: Pick<ReceiptStoreInfo, 'name' | 'paper_size'>,
+  options: ReceiptRenderOptions,
   macAddress: string,
 ): Promise<void> {
   if (!macAddress) {
@@ -135,6 +121,6 @@ export async function printTestReceiptBluetooth(
 
   await connectPrinter(macAddress);
   const BLEPrinter = getBlePrinterModule();
-  const payload = buildTestReceiptText(store);
+  const payload = buildTestReceiptText(options);
   BLEPrinter.printBill(payload, { beep: true, cut: true, tailingLine: true });
 }

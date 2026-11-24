@@ -33,7 +33,10 @@ export default function SaleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: sale, isLoading } = useSaleDetailQuery(id);
   const voidMutation = useVoidSaleMutation();
-  const printer = useReceiptPrinter({ successTitle: 'Cetak Ulang Berhasil' });
+  const printer = useReceiptPrinter({
+    successTitle: 'Cetak Ulang Berhasil',
+    isReprint: true,
+  });
 
   const [voidModalOpen, setVoidModalOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('');
