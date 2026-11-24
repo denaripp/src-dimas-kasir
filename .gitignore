@@ -16,6 +16,9 @@ ios/
 .env.local
 .env.*.local
 
+# Supabase CLI temp
+supabase/.temp/
+
 # Keys & signing
 *.jks
 *.p8
