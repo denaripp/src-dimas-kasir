@@ -38,3 +38,8 @@ bun.lockb
 .DS_Store
 Thumbs.db
 *.pem
+
+# Private store inventory exports & local APK binaries
+datasrcdimas.xls
+datasrcdimas_import.csv
+*.apk
