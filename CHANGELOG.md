@@ -2,6 +2,10 @@
 
 Seluruh perubahan penting pada **src dimas kasir** dicatat di dokumen ini.
 
+## [v0.3.4] — 2026-11-24
+### Panel Notifikasi Stok di Beranda
+- Menambahkan modal **Notifikasi Stok** (`LowStockNotificationModal`) pada ikon lonceng kanan atas Beranda yang menampilkan daftar barang **Stok Habis (0)** dan **Stok Menipis** lengkap dengan tombol cepat **`+ Stok`** langsung ke halaman kelola stok (tidak lagi memindahkan tab ke Barang & Stok).
+
 ## [v0.3.3] — 2026-11-24
 ### Perbaikan Struk Thermal & PDF
 - Menghapus tag `<B>` (4× besar / `ESC ! 48`) pada baris `TOTAL` agar seluruh baris ringkasan (`Total Item`, `TOTAL`, `TUNAI`, `KEMBALI`) seragam dan sejajar rata kanan 32 kolom (58mm) / 48 kolom (80mm).

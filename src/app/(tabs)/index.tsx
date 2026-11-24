@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountSheetModal } from '@/components/account/AccountSheetModal';
 import { MotionPressable } from '@/components/common/MotionPressable';
 import { ProductThumbnail } from '@/components/common/ProductThumbnail';
+import { LowStockNotificationModal } from '@/components/dashboard/LowStockNotificationModal';
 import { PrinterSettingsModal } from '@/components/printer/PrinterSettingsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
@@ -48,6 +49,7 @@ export default function DashboardScreen() {
   const [todayKey, setTodayKey] = useState(() => formatIsoDateLocal(new Date()));
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [printerModalOpen, setPrinterModalOpen] = useState(false);
+  const [notificationModalOpen, setNotificationModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -150,7 +152,7 @@ export default function DashboardScreen() {
           </MotionPressable>
 
           <MotionPressable
-            onPress={() => router.push('/(tabs)/barang')}
+            onPress={() => setNotificationModalOpen(true)}
             accessibilityLabel="Notifikasi Stok Menipis"
             className="relative h-10 w-10 items-center justify-center rounded-full bg-surface"
           >
@@ -425,6 +427,17 @@ export default function DashboardScreen() {
         visible={printerModalOpen}
         onClose={() => setPrinterModalOpen(false)}
       />
+      {notificationModalOpen ? (
+        <LowStockNotificationModal
+          visible={notificationModalOpen}
+          products={lowStockProducts}
+          onRestock={(productId) => {
+            setNotificationModalOpen(false);
+            router.push(`/stok/${productId}`);
+          }}
+          onClose={() => setNotificationModalOpen(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -17,7 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'src dimas kasir',
   slug: 'src-dimas-kasir',
   owner: 'denaripp',
-  version: '0.3.3',
+  version: '0.3.4',
   icon: './assets/icon.png',
   orientation: 'portrait',
   scheme: 'srcdimaskasir',
@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   platforms: ['android'],
   android: {
     package: 'com.srcdimas.kasir',
-    versionCode: 6,
+    versionCode: 7,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
