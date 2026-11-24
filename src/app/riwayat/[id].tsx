@@ -120,11 +120,21 @@ export default function SaleDetailScreen() {
 
   if (isLoading || !sale) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white">
+      <SafeAreaView className="flex-1 items-center justify-center bg-white px-6">
         {isLoading ? (
           <ActivityIndicator size="large" color="#D91E2A" />
         ) : (
-          <Text className="font-bold text-[14px] text-black">Transaksi tidak ditemukan.</Text>
+          <View className="items-center gap-3">
+            <Text className="font-bold text-[14px] text-black">
+              Transaksi tidak ditemukan.
+            </Text>
+            <Pressable
+              onPress={() => router.back()}
+              className="rounded-control border-[1.5px] border-black bg-white px-5 py-2.5"
+            >
+              <Text className="font-extrabold text-[13px] text-black">Kembali</Text>
+            </Pressable>
+          </View>
         )}
       </SafeAreaView>
     );

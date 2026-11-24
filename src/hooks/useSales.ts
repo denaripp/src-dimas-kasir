@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { PRODUCT_KEYS } from '@/hooks/useProducts';
 import { parseSaleRpcError } from '@/lib/cartCalc';
 import { formatLocalDateKey } from '@/lib/format';
@@ -68,31 +68,43 @@ export function useSaleDetailQuery(saleId: string | undefined) {
  */
 export function useSalesRealtime(storeId: string | undefined) {
   const queryClient = useQueryClient();
+  const instanceIdRef = useRef<string>(
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  );
 
   useEffect(() => {
     if (!storeId) return;
 
-    const channel = supabase
-      .channel(`sales-realtime-${storeId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sales',
-          filter: `store_id=eq.${storeId}`,
-        },
-        () => {
-          void queryClient.invalidateQueries({ queryKey: SALE_KEYS.all });
-          void queryClient.invalidateQueries({ queryKey: ['reports'] });
-          void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-          void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
-        },
-      )
-      .subscribe();
+    const channelName = `sales-realtime-${storeId}-${instanceIdRef.current}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'sales',
+            filter: `store_id=eq.${storeId}`,
+          },
+          () => {
+            void queryClient.invalidateQueries({ queryKey: SALE_KEYS.all });
+            void queryClient.invalidateQueries({ queryKey: ['reports'] });
+            void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            void queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.all });
+          },
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Supabase realtime subscribe gagal:', err);
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [storeId, queryClient]);
 }

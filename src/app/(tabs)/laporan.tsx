@@ -284,6 +284,7 @@ export default function LaporanScreen() {
                     barWidth={24}
                     spacing={14}
                     roundedTop
+                    showGradient={false}
                     hideRules
                     yAxisThickness={0}
                     xAxisThickness={1.5}

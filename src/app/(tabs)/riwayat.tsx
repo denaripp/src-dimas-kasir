@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
-import { useSalesHistoryQuery, useSalesRealtime } from '@/hooks/useSales';
+import { useSalesHistoryQuery } from '@/hooks/useSales';
 import { formatDateTime, formatRupiah, formatTimeOnly } from '@/lib/format';
 import type { SaleWithItems } from '@/lib/reportCalc';
 
@@ -20,7 +20,6 @@ type HistoryFilter = 'all' | 'completed' | 'void';
 export default function RiwayatScreen() {
   const router = useRouter();
   const { store } = useAuth();
-  useSalesRealtime(store?.id);
 
   const {
     data: sales = [],
@@ -111,9 +110,10 @@ export default function RiwayatScreen() {
         <View className="mb-3 flex-row items-center justify-between">
           <View>
             <Text className="font-extrabold text-[18px] text-black">Riwayat Realtime</Text>
-            <Text className="font-semibold text-[11px] text-red">
-              <FontAwesome6 name="wifi" size={10} color="#D91E2A" solid /> Sinkron otomatis
-            </Text>
+            <View className="mt-0.5 flex-row items-center gap-1">
+              <FontAwesome6 name="wifi" size={10} color="#D91E2A" solid />
+              <Text className="font-semibold text-[11px] text-red">Sinkron otomatis</Text>
+            </View>
           </View>
 
           <Pressable

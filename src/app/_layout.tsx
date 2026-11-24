@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 
 export const unstable_settings = {
@@ -95,7 +96,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <StatusBar style="dark" backgroundColor="#FFFFFF" />
-          <RootNavigator />
+          <AppErrorBoundary>
+            <RootNavigator />
+          </AppErrorBoundary>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

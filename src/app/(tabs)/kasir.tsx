@@ -264,23 +264,27 @@ export default function KasirScreen() {
           <View>
             <Text className="font-extrabold text-[18px] text-black">Kasir Tunai</Text>
             <View className="mt-0.5 flex-row items-center gap-3">
-              <Text className="font-semibold text-[11px] text-black">
-                <FontAwesome6 name="barcode" size={11} color="#09090B" solid /> HID:{' '}
-                {hidEnabled ? 'Siap' : 'Jeda'}
-              </Text>
-              <Text
-                className={`font-extrabold text-[11px] ${
-                  isOnline ? 'text-black' : 'text-red'
-                }`}
-              >
+              <View className="flex-row items-center gap-1">
+                <FontAwesome6 name="barcode" size={11} color="#09090B" solid />
+                <Text className="font-semibold text-[11px] text-black">
+                  HID: {hidEnabled ? 'Siap' : 'Jeda'}
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-1">
                 <FontAwesome6
                   name="wifi"
                   size={11}
                   color={isOnline ? '#09090B' : '#D91E2A'}
                   solid
-                />{' '}
-                {isOnline ? 'Online' : 'Offline'}
-              </Text>
+                />
+                <Text
+                  className={`font-extrabold text-[11px] ${
+                    isOnline ? 'text-black' : 'text-red'
+                  }`}
+                >
+                  {isOnline ? 'Online' : 'Offline'}
+                </Text>
+              </View>
             </View>
           </View>
 

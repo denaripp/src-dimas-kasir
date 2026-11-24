@@ -14,7 +14,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { usePeriodReportQuery } from '@/hooks/useReports';
-import { useSalesHistoryQuery, useSalesRealtime } from '@/hooks/useSales';
+import { useSalesHistoryQuery } from '@/hooks/useSales';
 import {
   formatIsoDateLocal,
   formatRupiah,
@@ -41,8 +41,6 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { store } = useAuth();
   const storeName = store?.name ?? 'Toko Saya';
-
-  useSalesRealtime(store?.id);
 
   const todayWindow = useMemo(() => {
     const now = new Date();
