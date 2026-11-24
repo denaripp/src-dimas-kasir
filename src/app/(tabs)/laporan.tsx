@@ -377,8 +377,7 @@ export default function LaporanScreen() {
                   className="mt-1.5 font-extrabold text-[17px] text-black"
                   style={{ fontVariant: ['tabular-nums'] }}
                 >
-                  {report?.completedCount ?? 0}{' '}
-                  <Text className="font-semibold text-[11.5px] text-muted">struk</Text>
+                  {report?.completedCount ?? 0}
                 </Text>
               </View>
 

@@ -84,7 +84,6 @@ export default function DashboardScreen() {
     void Promise.all([refetchReport(), refetchProducts(), refetchSales()]);
   };
 
-  const completedCount = todayReport?.completedCount ?? 0;
   const totalExpenses = todayReport?.totalExpenses ?? 0;
 
   return (
@@ -159,28 +158,18 @@ export default function DashboardScreen() {
             elevation: 5,
           }}
         >
-          <View className="flex-row items-start justify-between gap-2">
-            <View className="flex-1">
-              <Text className="font-semibold text-[12px] text-white/90">
-                Penjualan Hari Ini
-              </Text>
-              <Text
-                className="mt-1 font-extrabold text-[27px] tracking-[-0.03em] text-white"
-                style={{ fontVariant: ['tabular-nums'] }}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                {formatRupiah(todayReport?.totalSales ?? 0)}
-              </Text>
-            </View>
-            <View className="rounded-chip bg-white/15 px-2.5 py-1.5">
-              <Text
-                className="font-bold text-[11.5px] text-white"
-                style={{ fontVariant: ['tabular-nums'] }}
-              >
-                {completedCount} struk
-              </Text>
-            </View>
+          <View>
+            <Text className="font-semibold text-[12px] text-white/90">
+              Penjualan Hari Ini
+            </Text>
+            <Text
+              className="mt-1 font-extrabold text-[27px] tracking-[-0.03em] text-white"
+              style={{ fontVariant: ['tabular-nums'] }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {formatRupiah(todayReport?.totalSales ?? 0)}
+            </Text>
           </View>
 
           <View className="my-3.5 h-[1px] bg-white/20" />
