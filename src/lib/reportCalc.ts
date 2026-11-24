@@ -160,5 +160,8 @@ export function generateReportCsv(
     ...lowStockProducts.map((p) => [p.name, p.stock, p.min_stock]),
   ];
 
-  return Papa.unparse(rows, { newline: '\n' });
+  return Papa.unparse(rows, {
+    newline: '\n',
+    escapeFormulae: /^[\s]*[=+\-@\t\r]/,
+  });
 }

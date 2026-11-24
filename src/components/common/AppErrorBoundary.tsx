@@ -21,10 +21,11 @@ export class AppErrorBoundary extends Component<
     errorMessage: '',
   };
 
-  static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
+  static getDerivedStateFromError(): AppErrorBoundaryState {
     return {
       hasError: true,
-      errorMessage: error?.message || 'Terjadi kesalahan tidak terduga.',
+      errorMessage:
+        'Terjadi kendala saat menampilkan halaman ini. Ketuk Muat Ulang untuk melanjutkan.',
     };
   }
 

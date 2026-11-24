@@ -2,6 +2,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import {
   buildEscPosReceiptText,
   buildTestReceiptText,
+  isTrustedLogoUrl,
   type ReceiptStoreInfo,
 } from '@/lib/receiptFormatter';
 import type { SaleItemRow, SaleRow } from '@/types/database';
@@ -108,7 +109,7 @@ export async function printReceiptBluetooth(
   await connectPrinter(macAddress);
   const BLEPrinter = getBlePrinterModule();
 
-  if (store.logo_url && BLEPrinter.printImage) {
+  if (isTrustedLogoUrl(store.logo_url) && BLEPrinter.printImage) {
     try {
       BLEPrinter.printImage(store.logo_url, {
         imageWidth: 160,

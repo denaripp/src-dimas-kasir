@@ -14,6 +14,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'com.srcdimas.kasir',
     versionCode: 2,
+    allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#E62129',
@@ -50,7 +51,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-font',
+    'expo-secure-store',
     'expo-web-browser',
+    [
+      '@react-native-google-signin/google-signin',
+      {
+        iosUrlScheme:
+          'com.googleusercontent.apps.649442221316-gdq947707fmcvrh5i4011bbrs5bidf0n',
+      },
+    ],
     './plugins/withThermalPrinterFix',
   ],
   experiments: {

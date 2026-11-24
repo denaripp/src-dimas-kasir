@@ -6,6 +6,8 @@ import {
   buildTestReceiptText,
   formatTwoColumns,
   getReceiptLineWidth,
+  isTrustedLogoUrl,
+  sanitizeEscPosText,
   type ReceiptStoreInfo,
 } from '../receiptFormatter';
 
@@ -88,5 +90,35 @@ describe('receiptFormatter', () => {
     const slip = buildTestReceiptText({ name: 'Toko Dimas', paper_size: 58 });
     expect(slip).toContain('TES CETAK PRINTER 58mm');
     expect(slip).toContain('Rp15.000');
+  });
+
+  test('sanitizeEscPosText membersihkan byte kontrol ESC/GS dan tag markup (F-07)', () => {
+    const malicious = '\x1B@\x1DV0<CB>GRATIS</CB>\nKopi';
+    const clean = sanitizeEscPosText(malicious);
+    expect(clean).not.toContain('\x1B');
+    expect(clean).not.toContain('\x1D');
+    expect(clean).not.toContain('<');
+    expect(clean).not.toContain('>');
+    expect(clean).toContain('Kopi');
+
+    const payload = buildEscPosReceiptText(
+      sampleSale,
+      [{ ...sampleItems[0], product_name_snapshot: malicious }],
+      sampleStore,
+    );
+    expect(payload).not.toContain('\x1B');
+    expect(payload).not.toContain('\x1D');
+    expect(payload).not.toContain('<CB>GRATIS</CB>');
+  });
+
+  test('isTrustedLogoUrl hanya mengizinkan HTTPS Supabase Storage store-logos', () => {
+    expect(
+      isTrustedLogoUrl(
+        'https://xjhulqlklbigwugpsonx.supabase.co/storage/v1/object/public/store-logos/u1/logo.png',
+      ),
+    ).toBe(true);
+    expect(isTrustedLogoUrl('javascript:alert(1)')).toBe(false);
+    expect(isTrustedLogoUrl('http://evil.example/logo.png')).toBe(false);
+    expect(isTrustedLogoUrl('file:///etc/passwd')).toBe(false);
   });
 });

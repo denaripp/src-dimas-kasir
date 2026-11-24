@@ -20,6 +20,26 @@ export function formatTwoColumns(left: string, right: string, width: number): st
   return `${clippedLeft}${' '.repeat(spaces)}${cleanRight}`;
 }
 
+const TRUSTED_LOGO_URL_REGEX =
+  /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/store-logos\//i;
+
+/**
+ * Membersihkan teks sebelum dikirim ke soket printer ESC/POS agar karakter kontrol
+ * (0x00–0x1F, ESC/GS) atau tag format (<CB>, <B>, <C>) dari input eksternal/CSV
+ * tidak dapat menyuntikkan perintah hardware ke printer atau laci kas.
+ */
+export function sanitizeEscPosText(text: string): string {
+  return text
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .replace(/[<>]/g, '')
+    .trim();
+}
+
+export function isTrustedLogoUrl(url: string | null | undefined): url is string {
+  return typeof url === 'string' && TRUSTED_LOGO_URL_REGEX.test(url.trim());
+}
+
 export function buildEscPosReceiptText(
   sale: SaleRow,
   items: SaleItemRow[],
@@ -29,30 +49,36 @@ export function buildEscPosReceiptText(
   const divider = '-'.repeat(width);
   const lines: string[] = [];
 
-  lines.push(`<CB>${store.name.trim()}</CB>`);
-  if (store.address.trim()) {
-    lines.push(`<C>${store.address.trim()}</C>`);
+  const safeName = sanitizeEscPosText(store.name) || 'Toko Saya';
+  const safeAddress = sanitizeEscPosText(store.address);
+  const safePhone = sanitizeEscPosText(store.phone);
+  const safeFooter = sanitizeEscPosText(store.receipt_footer);
+
+  lines.push(`<CB>${safeName}</CB>`);
+  if (safeAddress) {
+    lines.push(`<C>${safeAddress}</C>`);
   }
-  if (store.phone.trim()) {
-    lines.push(`<C>${store.phone.trim()}</C>`);
+  if (safePhone) {
+    lines.push(`<C>${safePhone}</C>`);
   }
 
   lines.push(divider);
-  lines.push(formatTwoColumns('No:', sale.receipt_number, width));
+  lines.push(formatTwoColumns('No:', sanitizeEscPosText(sale.receipt_number), width));
   lines.push(formatTwoColumns('Tgl:', formatDateTime(sale.created_at), width));
 
   if (sale.status === 'void') {
     lines.push(divider);
     lines.push('<CB>*** TRANSAKSI VOID ***</CB>');
-    if (sale.void_reason) {
-      lines.push(`<C>Alasan: ${sale.void_reason}</C>`);
+    const safeVoidReason = sale.void_reason ? sanitizeEscPosText(sale.void_reason) : '';
+    if (safeVoidReason) {
+      lines.push(`<C>Alasan: ${safeVoidReason}</C>`);
     }
   }
 
   lines.push(divider);
 
   for (const item of items) {
-    lines.push(item.product_name_snapshot);
+    lines.push(sanitizeEscPosText(item.product_name_snapshot) || 'Barang');
     const qtyPrice = `${item.qty} x ${formatRupiah(item.sell_price_snapshot)}`;
     const subtotal = formatRupiah(item.subtotal);
     lines.push(formatTwoColumns(qtyPrice, subtotal, width));
@@ -64,8 +90,8 @@ export function buildEscPosReceiptText(
   lines.push(formatTwoColumns('KEMBALIAN', formatRupiah(sale.change_amount), width));
   lines.push(divider);
 
-  if (store.receipt_footer.trim()) {
-    lines.push(`<C>${store.receipt_footer.trim()}</C>`);
+  if (safeFooter) {
+    lines.push(`<C>${safeFooter}</C>`);
   }
   lines.push('');
 
@@ -77,9 +103,10 @@ export function buildTestReceiptText(
 ): string {
   const width = getReceiptLineWidth(store.paper_size);
   const divider = '-'.repeat(width);
+  const safeName = sanitizeEscPosText(store.name) || 'Toko Saya';
 
   return [
-    `<CB>${store.name.trim()}</CB>`,
+    `<CB>${safeName}</CB>`,
     `<C>TES CETAK PRINTER ${store.paper_size}mm</C>`,
     divider,
     formatTwoColumns('Lebar Baris', `${width} kar`, width),
@@ -120,7 +147,7 @@ export function buildReceiptHtml(
     )
     .join('');
 
-  const logoHtml = store.logo_url
+  const logoHtml = isTrustedLogoUrl(store.logo_url)
     ? `<div class="center"><img class="logo" src="${escapeHtml(store.logo_url)}" alt="Logo Toko" /></div>`
     : '';
 

@@ -1,20 +1,32 @@
 export interface ParsedAuthCallback {
   code: string | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   error: string | null;
   errorDescription: string | null;
 }
 
 /**
- * Mengurai parameter OAuth callback Supabase baik dari query (?code=...)
- * maupun fragment (#access_token=...&refresh_token=...).
+ * Memastikan URL callback OAuth benar-benar cocok dengan redirect URI aplikasi
+ * (scheme + host/path) sebelum parameter code dibaca.
+ */
+export function isExpectedAuthCallback(url: string, expectedRedirectUri: string): boolean {
+  if (!url || !expectedRedirectUri) {
+    return false;
+  }
+
+  const normalizedUrl = url.split(/[?#]/)[0]?.toLowerCase() ?? '';
+  const normalizedExpected = expectedRedirectUri.split(/[?#]/)[0]?.toLowerCase() ?? '';
+
+  return normalizedExpected.length > 0 && normalizedUrl === normalizedExpected;
+}
+
+/**
+ * Mengurai parameter OAuth callback Supabase khusus PKCE (?code=...) atau error.
+ * Token implicit (#access_token / #refresh_token) sengaja tidak diterima untuk
+ * mencegah kebocoran token mentah melalui custom URI scheme (RFC 8252 / F-03).
  */
 export function parseAuthTokensFromUrl(url: string): ParsedAuthCallback {
   const empty: ParsedAuthCallback = {
     code: null,
-    accessToken: null,
-    refreshToken: null,
     error: null,
     errorDescription: null,
   };
@@ -37,8 +49,6 @@ export function parseAuthTokensFromUrl(url: string): ParsedAuthCallback {
 
   return {
     code: queryParams.get('code') ?? hashParams.get('code'),
-    accessToken: hashParams.get('access_token') ?? queryParams.get('access_token'),
-    refreshToken: hashParams.get('refresh_token') ?? queryParams.get('refresh_token'),
     error: queryParams.get('error') ?? hashParams.get('error'),
     errorDescription:
       queryParams.get('error_description') ?? hashParams.get('error_description'),

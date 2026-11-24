@@ -19,6 +19,7 @@ import {
   useProductsQuery,
 } from '@/hooks/useProducts';
 import {
+  CSV_MAX_FILE_BYTES,
   generateProductsCsv,
   getProductsCsvTemplate,
   parseProductsCsv,
@@ -103,6 +104,21 @@ export default function CsvProductsScreen() {
       }
 
       const file = result.assets[0];
+      let fileSize = typeof file.size === 'number' ? file.size : null;
+      if (fileSize === null) {
+        const info = await FileSystem.getInfoAsync(file.uri);
+        if (info.exists && 'size' in info && typeof info.size === 'number') {
+          fileSize = info.size;
+        }
+      }
+      if (fileSize !== null && fileSize > CSV_MAX_FILE_BYTES) {
+        Alert.alert(
+          'File Terlalu Besar',
+          'Ukuran file CSV maksimal 2 MB agar tidak membebani memori perangkat.',
+        );
+        return;
+      }
+
       const text = await FileSystem.readAsStringAsync(file.uri, {
         encoding: FileSystem.EncodingType.UTF8,
       });
@@ -358,19 +374,26 @@ export default function CsvProductsScreen() {
                         </Text>
                       </View>
                     ) : (
-                      preview.errorRows.map((row) => (
-                        <View
-                          key={`e-${row.rowNumber}`}
-                          className="rounded-card bg-red-soft px-3.5 py-3"
-                        >
-                          <Text className="font-extrabold text-[13px] text-red">
-                            Baris {row.rowNumber}: {row.rawName}
+                      <>
+                        {preview.errorRows.slice(0, 50).map((row) => (
+                          <View
+                            key={`e-${row.rowNumber}`}
+                            className="rounded-card bg-red-soft px-3.5 py-3"
+                          >
+                            <Text className="font-extrabold text-[13px] text-red">
+                              Baris {row.rowNumber}: {row.rawName}
+                            </Text>
+                            <Text className="mt-1 font-medium text-[12px] text-red">
+                              {row.reasons.join(' • ')}
+                            </Text>
+                          </View>
+                        ))}
+                        {preview.errorRows.length > 50 ? (
+                          <Text className="py-2 text-center font-semibold text-[11.5px] text-muted">
+                            Menampilkan 50 dari {preview.errorRows.length} baris error.
                           </Text>
-                          <Text className="mt-1 font-medium text-[12px] text-red">
-                            {row.reasons.join(' • ')}
-                          </Text>
-                        </View>
-                      ))
+                        ) : null}
+                      </>
                     )}
                   </View>
                 )}

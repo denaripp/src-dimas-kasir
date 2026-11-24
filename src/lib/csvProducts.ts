@@ -2,6 +2,9 @@ import Papa from 'papaparse';
 import type { CsvImportProductRow, ProductRow } from '@/types/database';
 
 export const CSV_MAX_ROWS = 1000;
+export const CSV_MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
+export const PG_INT4_MAX = 2_147_483_647;
+export const CSV_FORMULA_ESCAPE_REGEX = /^[\s]*[=+\-@\t\r]/;
 
 export const CSV_HEADERS = [
   'nama',
@@ -54,6 +57,12 @@ function parseNonNegativeInteger(
   if (!Number.isSafeInteger(num) || num < 0) {
     return { value: 0, error: `${fieldLabel} tidak boleh negatif` };
   }
+  if (num > PG_INT4_MAX) {
+    return {
+      value: 0,
+      error: `${fieldLabel} melebihi batas maksimal (${PG_INT4_MAX})`,
+    };
+  }
 
   return { value: num, error: null };
 }
@@ -81,6 +90,7 @@ export function parseProductsCsv(csvText: string): CsvParseResult {
   const parsed = Papa.parse<Record<string, string>>(cleanText, {
     header: true,
     skipEmptyLines: 'greedy',
+    preview: CSV_MAX_ROWS + 2,
     transformHeader: (header) => header.trim().toLowerCase(),
   });
 
@@ -210,7 +220,7 @@ export function generateProductsCsv(products: ProductRow[]): string {
         r.stok_minimum,
       ]),
     },
-    { newline: '\n' },
+    { newline: '\n', escapeFormulae: CSV_FORMULA_ESCAPE_REGEX },
   );
 }
 

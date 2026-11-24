@@ -144,4 +144,29 @@ describe('computeReportSummary', () => {
     expect(csv).toContain('Indomie Goreng');
     expect(csv).toContain('Rp0');
   });
+
+  test('generateReportCsv meng-escape formula berbahaya pada nama toko dan barang (F-06)', () => {
+    const summary = computeReportSummary([], []);
+    const lowStock: ProductRow[] = [
+      {
+        id: 'p1',
+        store_id: 'st1',
+        name: '=cmd|"/C calc"!A0',
+        barcode: null,
+        category: 'Makanan',
+        image_url: null,
+        sell_price: 3500,
+        cost_price: 2800,
+        stock: 2,
+        min_stock: 10,
+        is_active: true,
+        created_at: '2026-11-23T00:00:00Z',
+        updated_at: '2026-11-23T00:00:00Z',
+      },
+    ];
+
+    const csv = generateReportCsv('+Toko Evil', 'Hari Ini', summary, lowStock);
+    expect(csv).toContain("'+Toko Evil");
+    expect(csv).toContain("'=cmd");
+  });
 });

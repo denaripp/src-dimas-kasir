@@ -77,6 +77,17 @@ describe('parseProductsCsv', () => {
     const res = parseProductsCsv('title,price\nKopi,3000');
     expect(res.fatalError).toContain('nama');
   });
+
+  test('menolak nilai integer yang melebihi batas INT4 PostgreSQL (F-08)', () => {
+    const csv = [
+      'nama,barcode,kategori,harga_jual,harga_modal,stok,stok_minimum',
+      'Barang Overflow,,Umum,9999999999,1000,1,0',
+    ].join('\n');
+    const res = parseProductsCsv(csv);
+    expect(res.validRows.length).toBe(0);
+    expect(res.errorRows.length).toBe(1);
+    expect(res.errorRows[0].reasons[0]).toContain('melebihi batas maksimal');
+  });
 });
 
 describe('generateProductsCsv & template', () => {
@@ -108,5 +119,31 @@ describe('generateProductsCsv & template', () => {
 
     const templateParsed = parseProductsCsv(getProductsCsvTemplate());
     expect(templateParsed.validRows.length).toBe(1);
+  });
+
+  test('meng-escape awalan formula spreadsheet pada ekspor CSV produk (F-06)', () => {
+    const products: ProductRow[] = [
+      {
+        id: 'p2',
+        store_id: 's1',
+        name: '=HYPERLINK("http://evil.test","Klik")',
+        barcode: '+12345',
+        category: '@SUM(A1:A2)',
+        image_url: null,
+        sell_price: 5000,
+        cost_price: 3000,
+        stock: 5,
+        min_stock: 1,
+        is_active: true,
+        created_at: '2026-11-23T00:00:00Z',
+        updated_at: '2026-11-23T00:00:00Z',
+      },
+    ];
+
+    const exported = generateProductsCsv(products);
+    const dataLine = exported.split('\n')[1];
+    expect(dataLine).toContain("'=HYPERLINK");
+    expect(dataLine).toContain("'+12345");
+    expect(dataLine).toContain("'@SUM(A1:A2)");
   });
 });
