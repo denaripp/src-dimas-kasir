@@ -79,7 +79,6 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
       <Stack.Screen name="stok/[productId]" />
       <Stack.Screen name="riwayat/[id]" />
       <Stack.Screen name="keuangan/index" />
-      <Stack.Screen name="profil/index" />
     </Stack>
   );
 }

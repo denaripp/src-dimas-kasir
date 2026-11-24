@@ -10,8 +10,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AccountSheetModal } from '@/components/account/AccountSheetModal';
 import { MotionPressable } from '@/components/common/MotionPressable';
 import { ProductThumbnail } from '@/components/common/ProductThumbnail';
+import { PrinterSettingsModal } from '@/components/printer/PrinterSettingsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useProductsQuery } from '@/hooks/useProducts';
 import { usePeriodReportQuery } from '@/hooks/useReports';
@@ -44,6 +46,8 @@ export default function DashboardScreen() {
   const { store } = useAuth();
   const storeName = store?.name ?? 'Toko Saya';
   const [todayKey, setTodayKey] = useState(() => formatIsoDateLocal(new Date()));
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [printerModalOpen, setPrinterModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -115,7 +119,7 @@ export default function DashboardScreen() {
         {/* Top Bar: Profil Toko di Kiri, Notifikasi Stok di Kanan */}
         <View className="mb-4 flex-row items-center justify-between">
           <MotionPressable
-            onPress={() => router.push('/profil')}
+            onPress={() => setAccountModalOpen(true)}
             scaleTo={0.97}
             className="flex-row items-center gap-3"
           >
@@ -249,7 +253,7 @@ export default function DashboardScreen() {
 
           <MotionPressable
             wrapperClassName="flex-1"
-            onPress={() => router.push('/profil')}
+            onPress={() => setPrinterModalOpen(true)}
             className="items-center gap-2 rounded-2xl bg-surface px-2 py-3"
           >
             <View className="h-[34px] w-[34px] items-center justify-center rounded-[11px] border border-border bg-white">
@@ -412,6 +416,15 @@ export default function DashboardScreen() {
           </View>
         )}
       </ScrollView>
+
+      <AccountSheetModal
+        visible={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+      />
+      <PrinterSettingsModal
+        visible={printerModalOpen}
+        onClose={() => setPrinterModalOpen(false)}
+      />
     </SafeAreaView>
   );
 }

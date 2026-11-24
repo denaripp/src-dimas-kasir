@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotionPressable } from '@/components/common/MotionPressable';
+import { PrinterSettingsModal } from '@/components/printer/PrinterSettingsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useSalesHistoryQuery } from '@/hooks/useSales';
 import { formatDateTime, formatRupiah } from '@/lib/format';
@@ -156,6 +157,7 @@ export default function RiwayatScreen() {
   } = useSalesHistoryQuery(store?.id);
 
   const [filter, setFilter] = useState<HistoryFilter>('all');
+  const [printerModalOpen, setPrinterModalOpen] = useState(false);
 
   const statusCounts = useMemo(() => {
     let completed = 0;
@@ -215,7 +217,7 @@ export default function RiwayatScreen() {
           </View>
 
           <MotionPressable
-            onPress={() => router.push('/profil')}
+            onPress={() => setPrinterModalOpen(true)}
             accessibilityLabel="Pengaturan Printer Thermal"
             className="h-10 w-10 items-center justify-center rounded-full bg-surface"
           >
@@ -275,6 +277,11 @@ export default function RiwayatScreen() {
           />
         )}
       </View>
+
+      <PrinterSettingsModal
+        visible={printerModalOpen}
+        onClose={() => setPrinterModalOpen(false)}
+      />
     </SafeAreaView>
   );
 }

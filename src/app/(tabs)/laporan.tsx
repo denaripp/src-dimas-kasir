@@ -199,13 +199,6 @@ export default function LaporanScreen() {
               <FontAwesome6 name="wallet" size={14} color="#09090B" solid />
             </MotionPressable>
             <MotionPressable
-              onPress={() => router.push('/profil')}
-              accessibilityLabel="Buka Profil Toko"
-              className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-            >
-              <FontAwesome6 name="store" size={14} color="#09090B" solid />
-            </MotionPressable>
-            <MotionPressable
               onPress={() => void handleExportReportCsv()}
               disabled={isExporting || !report}
               accessibilityLabel="Ekspor Laporan CSV"
@@ -474,26 +467,16 @@ export default function LaporanScreen() {
               </>
             ) : null}
 
-            {/* Shortcut Keuangan & Profil */}
-            <View className="flex-row gap-2.5">
-              <MotionPressable
-                wrapperClassName="flex-1"
-                onPress={() => router.push('/keuangan')}
-                className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
-              >
-                <FontAwesome6 name="wallet" size={13} color="#09090B" solid />
-                <Text className="font-bold text-[13px] text-black">Pengeluaran</Text>
-              </MotionPressable>
-
-              <MotionPressable
-                wrapperClassName="flex-1"
-                onPress={() => router.push('/profil')}
-                className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
-              >
-                <FontAwesome6 name="store" size={13} color="#09090B" solid />
-                <Text className="font-bold text-[13px] text-black">Profil Toko</Text>
-              </MotionPressable>
-            </View>
+            {/* Shortcut Kelola Pengeluaran */}
+            <MotionPressable
+              onPress={() => router.push('/keuangan')}
+              className="min-h-[44px] flex-row items-center justify-center gap-2 rounded-control border border-border bg-white py-3"
+            >
+              <FontAwesome6 name="wallet" size={13} color="#09090B" solid />
+              <Text className="font-bold text-[13px] text-black">
+                Kelola Pengeluaran &amp; Biaya
+              </Text>
+            </MotionPressable>
           </>
         )}
       </ScrollView>
