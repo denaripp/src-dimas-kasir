@@ -17,7 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'src dimas kasir',
   slug: 'src-dimas-kasir',
   owner: 'denaripp',
-  version: '0.3.4',
+  version: '0.3.5',
   icon: './assets/icon.png',
   orientation: 'portrait',
   scheme: 'srcdimaskasir',
@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   platforms: ['android'],
   android: {
     package: 'com.srcdimas.kasir',
-    versionCode: 7,
+    versionCode: 8,
     allowBackup: false,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
@@ -55,6 +55,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           usesCleartextTraffic: false,
           enableProguardInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
+          useLegacyPackaging: true,
+          enableBundleCompression: true,
           extraProguardRules: PROGUARD_KEEP_RULES,
         },
       },
@@ -98,6 +100,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     './plugins/withThermalPrinterFix',
     './plugins/withAndroidSecurityHardening',
+    './plugins/withAndroidAbiFilter',
   ],
   experiments: {
     typedRoutes: true,

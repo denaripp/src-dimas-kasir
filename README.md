@@ -10,7 +10,7 @@
       <img src="https://github.com/denaripp/src-dimas-kasir/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
     </a>
     <a href="https://github.com/denaripp/src-dimas-kasir/releases/latest">
-      <img src="https://img.shields.io/badge/release-v0.3.4-D91E2A?style=flat" alt="Latest Release" />
+      <img src="https://img.shields.io/badge/release-v0.3.5-D91E2A?style=flat" alt="Latest Release" />
     </a>
     <img src="https://img.shields.io/badge/Expo-SDK%2053-09090B?style=flat&logo=expo&logoColor=white" alt="Expo SDK 53" />
     <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat&logo=typescript&logoColor=white" alt="TypeScript" />

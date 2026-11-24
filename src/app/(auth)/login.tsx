@@ -245,7 +245,7 @@ export default function LoginScreen() {
           <Text className="px-2 text-center font-medium text-[11px] leading-4 text-muted">
             Akses khusus pengelola dan kasir Toko SRC Dimas.
           </Text>
-          <Text className="text-center font-semibold text-[10.5px] text-muted">v0.3.4</Text>
+          <Text className="text-center font-semibold text-[10.5px] text-muted">v0.3.5</Text>
         </Animated.View>
       </View>
     </SafeAreaView>

@@ -2,6 +2,11 @@
 
 Seluruh perubahan penting pada **src dimas kasir** dicatat di dokumen ini.
 
+## [v0.3.5] — 2026-11-25
+### Optimasi Ukuran APK Android (95 MB → ~28–32 MB)
+- Menambahkan Expo Config Plugin `plugins/withAndroidAbiFilter.js` untuk membatasi `reactNativeArchitectures=armeabi-v7a,arm64-v8a` (membuang library emulator `x86` & `x86_64` sebesar `47 MB` sambil tetap mendukung HP Android 64-bit modern & 32-bit lama).
+- Mengaktifkan `useLegacyPackaging: true` (kompresi native `.so` di dalam APK) dan `enableBundleCompression: true` di `expo-build-properties`.
+
 ## [v0.3.4] — 2026-11-24
 ### Panel Notifikasi Stok di Beranda
 - Menambahkan modal **Notifikasi Stok** (`LowStockNotificationModal`) pada ikon lonceng kanan atas Beranda yang menampilkan daftar barang **Stok Habis (0)** dan **Stok Menipis** lengkap dengan tombol cepat **`+ Stok`** langsung ke halaman kelola stok (tidak lagi memindahkan tab ke Barang & Stok).
