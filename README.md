@@ -19,8 +19,16 @@
   </p>
 
   <p>
-    <a href="https://github.com/denaripp/src-dimas-kasir/releases/latest/download/srcdimas-kasir.apk">
-      <strong>Download APK Terbaru (srcdimas-kasir.apk)</strong>
+    <a href="https://expo.dev/artifacts/eas/EwQY3sJvErrjXIomMLEQIXl8I_-Zwt3ErRKg1faVnjM.apk" target="_blank" rel="noopener noreferrer">
+      <strong>🚀 Download APK Langsung (v0.3.5 - 23.2 MB)</strong>
+    </a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/denaripp/src-dimas-kasir/releases/tag/v0.3.5">
+      <strong>Halaman Release GitHub</strong>
+    </a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://expo.dev/accounts/denaripp/projects/src-dimas-kasir/builds/016a8360-63d9-44cf-9662-3de1f0c63f6c" target="_blank" rel="noopener noreferrer">
+      <strong>Install via QR Code</strong>
     </a>
     &nbsp;&middot;&nbsp;
     <a href="./CHANGELOG.md">Changelog</a>
